@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { CheckCircle2, Circle, Info, Loader2, MessageSquare, Plus, Save, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
   type ExerciseInput,
 } from "@/lib/actions";
 import { cn } from "@/lib/utils";
+import { useUnit } from "@/lib/unit-context";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,35 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   // Exercise guide modal
   const [guideExercise, setGuideExercise] = useState<{ name: string; gifUrl: string | null } | null>(null);
 
+  // Unit preference (kg/lb)
+  const { unit, label: unitLabel, fromDisplay } = useUnit();
+  const convertedRef = useRef(false);
+
+  // Convert pre-filled kg values to display unit once after localStorage loads
+  useEffect(() => {
+    if (unit === "lb" && !convertedRef.current) {
+      convertedRef.current = true;
+      setLocalData((prev) => {
+        const next: typeof prev = {};
+        for (const exId in prev) {
+          next[exId] = {};
+          for (const setId in prev[exId]) {
+            const ls = prev[exId][setId];
+            next[exId][setId] = {
+              ...ls,
+              weight: ls.weight
+                ? String(Math.round(parseFloat(ls.weight) * 2.20462 * 10) / 10)
+                : "",
+            };
+          }
+        }
+        return next;
+      });
+    } else if (unit === "kg" && !convertedRef.current) {
+      convertedRef.current = true;
+    }
+  }, [unit]);
+
   // AI weight recommendations — keyed by exerciseId
   const [aiTips, setAiTips] = useState<Record<string, string>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
@@ -178,7 +208,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
         const ls = localData[ex.id]?.[s.id];
         return {
           setId: s.id,
-          weight: ls?.weight ? parseFloat(ls.weight) : null,
+          weight: ls?.weight ? fromDisplay(parseFloat(ls.weight)) : null,
           reps: ls?.reps ? parseInt(ls.reps, 10) : null,
           duration: ls?.duration ? parseInt(ls.duration, 10) : null,
           completed: ls?.completed ?? false,
@@ -284,7 +314,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                   <span className="col-span-2 text-center">Duration (s)</span>
                 ) : (
                   <>
-                    <span className="text-center">kg</span>
+                    <span className="text-center">{unitLabel}</span>
                     <span className="text-center">Reps</span>
                   </>
                 )}
@@ -326,7 +356,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                         <Input
                           type="number"
                           inputMode="decimal"
-                          placeholder="kg"
+                          placeholder={unitLabel}
                           className="h-10 text-center text-base font-medium"
                           value={ls?.weight ?? ""}
                           onChange={(e) => updateSet(ex.id, s.id, "weight", e.target.value)}

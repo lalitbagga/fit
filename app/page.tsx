@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StreakCard } from "@/components/streak-card";
 import { TemplateSelector } from "@/components/template-selector";
+import { UnitToggle } from "@/components/unit-toggle";
+import { AiWorkoutGenerator } from "@/components/ai-workout-generator";
 import {
   getStreak,
   getRecentWorkouts,
@@ -53,6 +55,7 @@ export default async function Dashboard() {
               <span className="text-lg">🏋️</span>
             </div>
           )}
+          <UnitToggle />
           <form
             action={async () => {
               "use server";
@@ -94,6 +97,9 @@ export default async function Dashboard() {
 
       {/* ── Task 2: Start New Workout ────────────────── */}
       <TemplateSelector templates={templates} />
+
+      {/* ── AI Workout Generator ─────────────────────── */}
+      <AiWorkoutGenerator />
 
       {/* ── Quick stats ─────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">

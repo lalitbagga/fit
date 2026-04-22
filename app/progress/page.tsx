@@ -3,6 +3,7 @@ import { ArrowLeft, ChevronRight, TrendingUp, TrendingDown, Minus } from "lucide
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getExerciseSummaries } from "@/lib/actions";
+import { WeightCell } from "@/components/weight-display";
 
 export const dynamic = "force-dynamic";
 
@@ -98,7 +99,7 @@ export default async function ProgressPage() {
                         {ex.sessions} session{ex.sessions !== 1 ? "s" : ""} ·{" "}
                         best{" "}
                         <span className="text-foreground font-medium">
-                          {ex.bestWeight} kg
+                          <WeightCell kg={ex.bestWeight} />
                         </span>
                       </p>
                     </div>

@@ -487,6 +487,207 @@ export async function getExerciseGifUrls(names: string[]): Promise<Record<string
   return Object.fromEntries(entries.map((e) => [e.name, e.gifUrl]));
 }
 
+// ─── AI Workout Generator ────────────────────────────────────────────────────
+
+type AiExercise = {
+  name: string;
+  sets: number;
+  repsTarget: string;
+  notes?: string | null;
+  suggestedWeight?: number | null;
+};
+
+export async function generateAiWorkout(
+  energyLevel: "low" | "medium" | "high",
+  focus: string
+): Promise<void> {
+  const userId = await getCurrentUserId();
+
+  const [recentWorkouts, library] = await Promise.all([
+    prisma.workout.findMany({
+      where: { userId, completedAt: { not: null } },
+      orderBy: { completedAt: "desc" },
+      take: 15,
+      include: {
+        template: { select: { name: true } },
+        exercises: {
+          include: {
+            sets: { where: { completed: true }, orderBy: { setNumber: "asc" } },
+          },
+          orderBy: { order: "asc" },
+        },
+      },
+    }),
+    prisma.exerciseLibrary.findMany({ orderBy: { name: "asc" }, select: { name: true } }),
+  ]);
+
+  const historyText = recentWorkouts
+    .slice(0, 10)
+    .map((w) => {
+      const date = w.completedAt?.toLocaleDateString("en-AU", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      });
+      const exercises = w.exercises
+        .map((ex) => {
+          const setStr = ex.sets
+            .map((s) =>
+              s.weight && s.reps
+                ? `${s.weight}kg×${s.reps}`
+                : s.duration
+                ? `${s.duration}s`
+                : "?"
+            )
+            .join(", ");
+          return `  ${ex.name}: ${setStr || "no data"}`;
+        })
+        .join("\n");
+      return `${date} (${w.template?.name ?? "Custom"}):\n${exercises}`;
+    })
+    .join("\n\n");
+
+  const client = new Anthropic();
+
+  const response = await client.messages.create({
+    model: "claude-opus-4-6",
+    max_tokens: 800,
+    system: [
+      {
+        type: "text",
+        text: `You are a personal trainer AI for a gym app. User: Lav (34M, 73kg, body recomposition, GoodLife gym).
+Generate a workout based on their history and today's energy/focus.
+
+Return ONLY valid JSON (no markdown, no other text):
+{
+  "name": "Workout name (e.g., Push Day)",
+  "emoji": "one emoji",
+  "exercises": [
+    {
+      "name": "Exercise Name (must exactly match a name from the provided library)",
+      "sets": 3,
+      "repsTarget": "8-12",
+      "notes": "optional coaching cue or null",
+      "suggestedWeight": 60
+    }
+  ]
+}
+
+Rules:
+- 4-6 exercises
+- suggestedWeight is in kg based on their recent history (null if no data)
+- Avoid muscles trained in the last 48 hours
+- Low energy: 3 sets, lighter; Medium: 3-4 sets; High: 4-5 sets
+- Only use exercise names exactly as they appear in the library`,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    messages: [
+      {
+        role: "user",
+        content: `Energy: ${energyLevel}
+Focus: ${focus}
+Today: ${new Date().toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "short" })}
+
+Exercise library:
+${library.map((e) => e.name).join(", ")}
+
+Recent history:
+${historyText || "No history yet — first workout!"}
+
+Generate a personalized workout.`,
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  const raw = (textBlock as Anthropic.TextBlock | undefined)?.text ?? "{}";
+
+  let plan: { name: string; emoji: string; exercises: AiExercise[] };
+  try {
+    plan = JSON.parse(raw.replace(/^```json?\n?|```\s*$/gm, "").trim());
+  } catch {
+    throw new Error("AI returned invalid workout plan");
+  }
+
+  // Create template (shows up in "My Workouts" under the template selector)
+  const lastTemplate = await prisma.workoutTemplate.findFirst({
+    orderBy: { order: "desc" },
+    select: { order: true },
+  });
+
+  const template = await prisma.workoutTemplate.create({
+    data: {
+      name: plan.name,
+      emoji: plan.emoji ?? "🤖",
+      order: Math.max((lastTemplate?.order ?? 3) + 1, 4),
+      exercises: {
+        create: plan.exercises.map((ex, i) => ({
+          name: ex.name,
+          sets: ex.sets,
+          repsTarget: ex.repsTarget,
+          notes: ex.notes ?? null,
+          order: i,
+        })),
+      },
+    },
+    include: { exercises: { orderBy: { order: "asc" } } },
+  });
+
+  // Pre-fill from last completed session (same logic as startWorkout)
+  const previousData = await Promise.all(
+    template.exercises.map(async (ex) => {
+      const lastSets = await prisma.set.findMany({
+        where: {
+          completed: true,
+          exercise: {
+            name: ex.name,
+            workout: { userId, completedAt: { not: null } },
+          },
+        },
+        orderBy: { exercise: { workout: { completedAt: "desc" } } },
+        take: ex.sets,
+        select: { setNumber: true, weight: true, reps: true, duration: true },
+      });
+      return { exerciseName: ex.name, lastSets };
+    })
+  );
+
+  const prevMap = Object.fromEntries(
+    previousData.map((d) => [d.exerciseName, d.lastSets])
+  );
+
+  const aiSuggestions = Object.fromEntries(
+    plan.exercises.map((ex) => [ex.name, ex.suggestedWeight ?? null])
+  );
+
+  const workout = await prisma.workout.create({
+    data: {
+      userId,
+      templateId: template.id,
+      exercises: {
+        create: template.exercises.map((ex) => ({
+          name: ex.name,
+          order: ex.order,
+          sets: {
+            create: Array.from({ length: ex.sets }, (_, i) => {
+              const prev = prevMap[ex.name]?.find((s) => s.setNumber === i + 1);
+              return {
+                setNumber: i + 1,
+                weight: prev?.weight ?? aiSuggestions[ex.name],
+                reps: prev?.reps ?? null,
+                duration: prev?.duration ?? null,
+              };
+            }),
+          },
+        })),
+      },
+    },
+  });
+
+  redirect(`/workout/${workout.id}`);
+}
+
 // ─── AI Weight Recommendation ─────────────────────────────────────────────────
 
 export async function getWeightRecommendation(

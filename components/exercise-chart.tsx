@@ -14,31 +14,37 @@ import {
 } from "recharts";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useUnit } from "@/lib/unit-context";
 import type { ProgressPoint } from "@/lib/actions";
 
 type Tab = "weight" | "volume";
-
 type TooltipEntry = { value?: number; name?: string };
-type CustomTooltipProps = { active?: boolean; payload?: TooltipEntry[]; label?: string };
-
-function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
-  if (!active || !payload?.length) return null;
-  const value = payload[0].value ?? 0;
-  const name = payload[0].name ?? "";
-  return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-sm">
-      <p className="font-semibold text-foreground">{label}</p>
-      <p className="text-primary">
-        {name === "maxWeight"
-          ? `${value} kg`
-          : `${value.toLocaleString()} kg vol`}
-      </p>
-    </div>
-  );
-}
 
 export function ExerciseChart({ data }: { data: ProgressPoint[] }) {
   const [tab, setTab] = useState<Tab>("weight");
+  const { label, toDisplay } = useUnit();
+
+  const displayData = data.map((d) => ({
+    ...d,
+    maxWeight: toDisplay(d.maxWeight),
+    totalVolume: toDisplay(d.totalVolume),
+  }));
+
+  function Tooltip_({ active, payload, label: lbl }: { active?: boolean; payload?: TooltipEntry[]; label?: string }) {
+    if (!active || !payload?.length) return null;
+    const value = payload[0].value ?? 0;
+    const name = payload[0].name ?? "";
+    return (
+      <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg text-sm">
+        <p className="font-semibold text-foreground">{lbl}</p>
+        <p className="text-primary">
+          {name === "maxWeight"
+            ? `${value} ${label}`
+            : `${value.toLocaleString()} ${label} vol`}
+        </p>
+      </div>
+    );
+  }
 
   if (data.length === 0) {
     return (
@@ -57,10 +63,10 @@ export function ExerciseChart({ data }: { data: ProgressPoint[] }) {
     );
   }
 
-  const maxW = Math.max(...data.map((d) => d.maxWeight));
-  const firstWeight = data[0].maxWeight;
-  const lastWeight = data[data.length - 1].maxWeight;
-  const delta = lastWeight - firstWeight;
+  const maxW = Math.max(...displayData.map((d) => d.maxWeight));
+  const firstWeight = displayData[0].maxWeight;
+  const lastWeight = displayData[displayData.length - 1].maxWeight;
+  const delta = Math.round((lastWeight - firstWeight) * 10) / 10;
 
   return (
     <div className="space-y-4">
@@ -86,7 +92,7 @@ export function ExerciseChart({ data }: { data: ProgressPoint[] }) {
       <div className="h-52">
         <ResponsiveContainer width="100%" height="100%">
           {tab === "weight" ? (
-            <LineChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+            <LineChart data={displayData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="date"
@@ -99,9 +105,9 @@ export function ExerciseChart({ data }: { data: ProgressPoint[] }) {
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(v) => `${v}kg`}
+                tickFormatter={(v) => `${v}${label}`}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<Tooltip_ />} />
               {firstWeight > 0 && (
                 <ReferenceLine
                   y={firstWeight}
@@ -121,7 +127,7 @@ export function ExerciseChart({ data }: { data: ProgressPoint[] }) {
               />
             </LineChart>
           ) : (
-            <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+            <BarChart data={displayData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="date"
@@ -135,7 +141,7 @@ export function ExerciseChart({ data }: { data: ProgressPoint[] }) {
                 tickLine={false}
                 tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<Tooltip_ />} />
               <Bar
                 dataKey="totalVolume"
                 name="totalVolume"
@@ -162,7 +168,7 @@ export function ExerciseChart({ data }: { data: ProgressPoint[] }) {
         >
           <span>Since first session</span>
           <span className="font-bold tabular-nums">
-            {delta > 0 ? "+" : ""}{delta} kg
+            {delta > 0 ? "+" : ""}{delta} {label}
           </span>
         </div>
       )}

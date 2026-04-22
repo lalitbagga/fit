@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExerciseChart } from "@/components/exercise-chart";
 import { getExerciseProgressData } from "@/lib/actions";
+import { WeightCell, VolumeCell, UnitLabel, WeightDelta } from "@/components/weight-display";
 
 export const dynamic = "force-dynamic";
 
@@ -57,10 +58,10 @@ export default async function ExerciseProgressPage({ params }: Props) {
           <CardContent className="flex flex-col items-center justify-center py-3 gap-0.5">
             <Trophy className="h-4 w-4 text-yellow-400 mb-0.5" />
             <span className="text-xl font-black tabular-nums text-foreground">
-              {bestWeight !== null ? `${bestWeight}` : "—"}
+              {bestWeight !== null ? <WeightCell kg={bestWeight} /> : "—"}
             </span>
             <span className="text-[10px] text-muted-foreground text-center leading-tight">
-              best kg
+              best <UnitLabel />
             </span>
           </CardContent>
         </Card>
@@ -77,10 +78,12 @@ export default async function ExerciseProgressPage({ params }: Props) {
                   : "text-foreground"
               }`}
             >
-              {delta !== null ? `${delta > 0 ? "+" : ""}${delta}` : "—"}
+              {firstWeight !== null && lastWeight !== null
+                ? <WeightDelta firstKg={firstWeight} lastKg={lastWeight} />
+                : "—"}
             </span>
             <span className="text-[10px] text-muted-foreground text-center leading-tight">
-              kg gained
+              <UnitLabel /> gained
             </span>
           </CardContent>
         </Card>
@@ -89,14 +92,10 @@ export default async function ExerciseProgressPage({ params }: Props) {
           <CardContent className="flex flex-col items-center justify-center py-3 gap-0.5">
             <Dumbbell className="h-4 w-4 text-primary mb-0.5" />
             <span className="text-xl font-black tabular-nums text-foreground">
-              {totalVolume > 0
-                ? totalVolume >= 1000
-                  ? `${(totalVolume / 1000).toFixed(1)}k`
-                  : `${totalVolume}`
-                : "—"}
+              <VolumeCell kgVol={totalVolume} />
             </span>
             <span className="text-[10px] text-muted-foreground text-center leading-tight">
-              kg total vol
+              <UnitLabel /> total vol
             </span>
           </CardContent>
         </Card>
@@ -130,7 +129,7 @@ export default async function ExerciseProgressPage({ params }: Props) {
                 : "Same weight as your first session"}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {firstWeight} kg → {lastWeight} kg
+              <WeightCell kg={firstWeight} /> → <WeightCell kg={lastWeight} />
             </p>
           </div>
         </div>
@@ -155,7 +154,7 @@ export default async function ExerciseProgressPage({ params }: Props) {
           <CardContent className="space-y-0 p-0">
             <div className="grid grid-cols-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide px-4 py-2 border-b border-border">
               <span>Date</span>
-              <span className="text-center">Max kg</span>
+              <span className="text-center">Max <UnitLabel /></span>
               <span className="text-right">Volume</span>
             </div>
             {[...data].reverse().map((d, i) => (
@@ -165,10 +164,10 @@ export default async function ExerciseProgressPage({ params }: Props) {
               >
                 <span className="text-muted-foreground">{d.date}</span>
                 <span className="text-center font-semibold text-foreground tabular-nums">
-                  {d.maxWeight > 0 ? `${d.maxWeight} kg` : "—"}
+                  {d.maxWeight > 0 ? <WeightCell kg={d.maxWeight} /> : "—"}
                 </span>
                 <span className="text-right text-muted-foreground tabular-nums">
-                  {d.totalVolume > 0 ? `${d.totalVolume.toLocaleString()}` : "—"}
+                  <VolumeCell kgVol={d.totalVolume} />
                 </span>
               </div>
             ))}

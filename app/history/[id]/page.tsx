@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { getWorkoutDetail } from "@/lib/actions";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { WeightCell, VolumeCell, UnitLabel } from "@/components/weight-display";
 
 export const dynamic = "force-dynamic";
 
@@ -80,10 +81,10 @@ export default async function WorkoutDetailPage({ params }: Props) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-3 gap-0.5">
             <span className="text-xl font-black tabular-nums text-primary">
-              {totalVolume > 0 ? `${(totalVolume / 1000).toFixed(1)}k` : "—"}
+              <VolumeCell kgVol={totalVolume} />
             </span>
             <span className="text-[10px] text-muted-foreground text-center leading-tight">
-              kg volume
+              <UnitLabel /> volume
             </span>
           </CardContent>
         </Card>
@@ -115,7 +116,7 @@ export default async function WorkoutDetailPage({ params }: Props) {
               {/* Column headers */}
               <div className="grid grid-cols-[2rem_1fr_1fr_2rem] gap-2 text-xs font-medium text-muted-foreground mb-2">
                 <span className="text-center">Set</span>
-                <span className="text-center">kg</span>
+                <span className="text-center"><UnitLabel /></span>
                 <span className="text-center">Reps</span>
                 <span />
               </div>
@@ -150,7 +151,7 @@ export default async function WorkoutDetailPage({ params }: Props) {
                       ) : (
                         <>
                           <span className="text-center text-sm font-medium text-foreground tabular-nums">
-                            {s.weight ?? "—"}
+                            <WeightCell kg={s.weight} />
                           </span>
                           <span className="text-center text-sm font-medium text-foreground tabular-nums">
                             {s.reps ?? "—"}
