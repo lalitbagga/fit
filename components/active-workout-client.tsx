@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
-import { CheckCircle2, Circle, Info, Loader2, MessageSquare, Plus, Save, Sparkles, X } from "lucide-react";
+import { ArrowLeftRight, CheckCircle2, Circle, Info, Loader2, MessageSquare, Plus, Save, Sparkles, Timer, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import {
   cancelWorkout,
   addExerciseToWorkout,
   getWeightRecommendation,
+  swapExercise,
   type ExerciseInput,
 } from "@/lib/actions";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,8 @@ type LocalSet = {
   completed: boolean;
 };
 
+const REST_SECONDS = 60;
+
 function isTimed(repsTarget: string) {
   return /s$|min/.test(repsTarget);
 }
@@ -67,10 +70,8 @@ function emptyLocalSet(): LocalSet {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, targets, exerciseLibrary, gifUrls }: Props) {
-  // Exercise list lives in state so we can append custom ones without a reload
   const [exercises, setExercises] = useState<ExerciseData[]>(initialExercises);
 
-  // Per-set input values, keyed exerciseId → setId → LocalSet
   const [localData, setLocalData] = useState<Record<string, Record<string, LocalSet>>>(
     () =>
       Object.fromEntries(
@@ -91,16 +92,14 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
       )
   );
 
-  // Per-exercise notes, keyed by exerciseId
   const [notes, setNotes] = useState<Record<string, string>>(
     () => Object.fromEntries(initialExercises.map((ex) => [ex.id, ex.notes ?? ""]))
   );
-  // Track which exercise note fields are expanded
   const [notesOpen, setNotesOpen] = useState<Record<string, boolean>>(
     () => Object.fromEntries(initialExercises.map((ex) => [ex.id, !!ex.notes]))
   );
 
-  // Add-exercise form state
+  // Add-exercise form
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newSets, setNewSets] = useState("3");
@@ -112,38 +111,52 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   // Exercise guide modal
   const [guideExercise, setGuideExercise] = useState<{ name: string; gifUrl: string | null } | null>(null);
 
-  // Unit preference (kg/lb)
-  const { unit, label: unitLabel, fromDisplay } = useUnit();
+  // Exercise swap modal — tracks which exercise is being swapped
+  const [swapTarget, setSwapTarget] = useState<ExerciseData | null>(null);
+  const [swapName, setSwapName] = useState("");
+  const [swapPending, startSwap] = useTransition();
+
+  // Unit is always lb — convert pre-filled kg values once on mount
+  const { label: unitLabel, fromDisplay } = useUnit();
   const convertedRef = useRef(false);
 
-  // Convert pre-filled kg values to display unit once after localStorage loads
   useEffect(() => {
-    if (unit === "lb" && !convertedRef.current) {
-      convertedRef.current = true;
-      setLocalData((prev) => {
-        const next: typeof prev = {};
-        for (const exId in prev) {
-          next[exId] = {};
-          for (const setId in prev[exId]) {
-            const ls = prev[exId][setId];
-            next[exId][setId] = {
-              ...ls,
-              weight: ls.weight
-                ? String(Math.round(parseFloat(ls.weight) * 2.20462 * 10) / 10)
-                : "",
-            };
-          }
+    if (convertedRef.current) return;
+    convertedRef.current = true;
+    setLocalData((prev) => {
+      const next: typeof prev = {};
+      for (const exId in prev) {
+        next[exId] = {};
+        for (const setId in prev[exId]) {
+          const ls = prev[exId][setId];
+          next[exId][setId] = {
+            ...ls,
+            weight: ls.weight
+              ? String(Math.round(parseFloat(ls.weight) * 2.20462 * 10) / 10)
+              : "",
+          };
         }
-        return next;
-      });
-    } else if (unit === "kg" && !convertedRef.current) {
-      convertedRef.current = true;
-    }
-  }, [unit]);
+      }
+      return next;
+    });
+  }, []);
 
-  // AI weight recommendations — keyed by exerciseId
+  // AI weight recommendations
   const [aiTips, setAiTips] = useState<Record<string, string>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
+
+  // ── Rest timer ─────────────────────────────────────────────────────────────
+  const [restSeconds, setRestSeconds] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (restSeconds === null) return;
+    if (restSeconds <= 0) {
+      const t = setTimeout(() => setRestSeconds(null), 1500);
+      return () => clearTimeout(t);
+    }
+    const t = setInterval(() => setRestSeconds((s) => (s ?? 1) - 1), 1000);
+    return () => clearInterval(t);
+  }, [restSeconds]);
 
   // ── Derived stats ──────────────────────────────────────────────────────────
   const totalSets = exercises.reduce((n, ex) => n + ex.sets.length, 0);
@@ -166,7 +179,9 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   }
 
   function toggleSet(exId: string, setId: string) {
-    updateSet(exId, setId, "completed", !(localData[exId]?.[setId]?.completed ?? false));
+    const wasCompleted = localData[exId]?.[setId]?.completed ?? false;
+    updateSet(exId, setId, "completed", !wasCompleted);
+    if (!wasCompleted) setRestSeconds(REST_SECONDS);
   }
 
   // ── Add custom exercise ────────────────────────────────────────────────────
@@ -183,19 +198,42 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
 
     startAdd(async () => {
       const ex = await addExerciseToWorkout(workoutId, name, num);
-
-      // Append exercise to list
       setExercises((prev) => [...prev, ex]);
-
-      // Initialise empty local set state for each new set
       setLocalData((prev) => ({
         ...prev,
         [ex.id]: Object.fromEntries(ex.sets.map((s) => [s.id, emptyLocalSet()])),
       }));
       setNotes((prev) => ({ ...prev, [ex.id]: "" }));
       setNotesOpen((prev) => ({ ...prev, [ex.id]: false }));
-
       setShowAddForm(false);
+    });
+  }
+
+  // ── Swap exercise ──────────────────────────────────────────────────────────
+  function handleSwap() {
+    if (!swapTarget || !swapName.trim()) return;
+    startSwap(async () => {
+      const updated = await swapExercise(workoutId, swapTarget.id, swapName.trim());
+      setExercises((prev) =>
+        prev.map((ex) => (ex.id === updated.id ? updated : ex))
+      );
+      setLocalData((prev) => ({
+        ...prev,
+        [updated.id]: Object.fromEntries(
+          updated.sets.map((s) => [
+            s.id,
+            {
+              weight: s.weight ? String(Math.round(s.weight * 2.20462 * 10) / 10) : "",
+              reps: s.reps?.toString() ?? "",
+              duration: s.duration?.toString() ?? "",
+              completed: false,
+            },
+          ])
+        ),
+      }));
+      setNotes((prev) => ({ ...prev, [updated.id]: "" }));
+      setSwapTarget(null);
+      setSwapName("");
     });
   }
 
@@ -272,6 +310,13 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                       Custom
                     </span>
                   )}
+                  <button
+                    onClick={() => { setSwapTarget(ex); setSwapName(""); }}
+                    className="p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
+                    aria-label={`Swap ${ex.name}`}
+                  >
+                    <ArrowLeftRight className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={() => fetchAiTip(ex.id, ex.name, target?.repsTarget ?? "")}
                     className="p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
@@ -437,25 +482,11 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                 className="h-11 w-20 text-center text-base font-medium"
               />
               <div className="flex gap-2 flex-1 justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAddForm(false)}
-                  disabled={addPending}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setShowAddForm(false)} disabled={addPending}>
                   Cancel
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleAdd}
-                  disabled={!newName.trim() || addPending}
-                  className="gap-1.5"
-                >
-                  {addPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
+                <Button size="sm" onClick={handleAdd} disabled={!newName.trim() || addPending} className="gap-1.5">
+                  {addPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   Add
                 </Button>
               </div>
@@ -483,6 +514,54 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
         />
       )}
 
+      {/* ── Swap exercise modal ───────────────────────────────────────────── */}
+      {swapTarget && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
+            onClick={() => !swapPending && setSwapTarget(null)}
+          />
+          <div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-card border-t border-border shadow-2xl px-5 pb-8 pt-4 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <ArrowLeftRight className="h-4 w-4 text-primary" />
+                  Swap Exercise
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Replacing: <span className="font-medium text-foreground">{swapTarget.name}</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setSwapTarget(null)}
+                disabled={swapPending}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <ExerciseCombobox
+              library={exerciseLibrary.filter((n) => n !== swapTarget.name)}
+              value={swapName}
+              onChange={setSwapName}
+            />
+            <Button
+              size="lg"
+              className="w-full gap-2 font-bold"
+              onClick={handleSwap}
+              disabled={!swapName.trim() || swapPending}
+            >
+              {swapPending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <ArrowLeftRight className="h-5 w-5" />
+              )}
+              {swapPending ? "Swapping…" : "Swap Exercise"}
+            </Button>
+          </div>
+        </>
+      )}
+
       {/* ── Action buttons ───────────────────────────────────────────────── */}
       <div className="flex gap-3 pb-8 pt-2">
         <Button
@@ -506,6 +585,24 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
           {progress === 100 ? "Finish Workout 🎉" : "Save & Finish"}
         </Button>
       </div>
+
+      {/* ── Rest timer (floating pill) ────────────────────────────────────── */}
+      {restSeconds !== null && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-full border border-border bg-card px-5 py-3 shadow-2xl">
+          <Timer className={cn("h-5 w-5", restSeconds > 0 ? "text-amber-400" : "text-green-400")} />
+          <span className={cn("text-sm font-bold tabular-nums", restSeconds > 0 ? "text-amber-400" : "text-green-400")}>
+            {restSeconds > 0 ? `Rest ${restSeconds}s` : "Go! 💪"}
+          </span>
+          {restSeconds > 0 && (
+            <button
+              onClick={() => setRestSeconds(null)}
+              className="ml-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Skip
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

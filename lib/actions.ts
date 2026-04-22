@@ -487,6 +487,67 @@ export async function getExerciseGifUrls(names: string[]): Promise<Record<string
   return Object.fromEntries(entries.map((e) => [e.name, e.gifUrl]));
 }
 
+// ─── Swap exercise in an active workout ──────────────────────────────────────
+
+export async function swapExercise(
+  workoutId: string,
+  exerciseId: string,
+  newName: string
+) {
+  const userId = await getCurrentUserId();
+  await prisma.workout.findUniqueOrThrow({ where: { id: workoutId, userId } });
+
+  const exercise = await prisma.workoutExercise.findUniqueOrThrow({
+    where: { id: exerciseId },
+    include: { sets: { orderBy: { setNumber: "asc" } } },
+  });
+
+  // Pre-fill from last session of the new exercise
+  const lastSets = await prisma.set.findMany({
+    where: {
+      completed: true,
+      exercise: {
+        name: newName.trim(),
+        workout: { userId, completedAt: { not: null } },
+      },
+    },
+    orderBy: { exercise: { workout: { completedAt: "desc" } } },
+    take: exercise.sets.length,
+    select: { setNumber: true, weight: true, reps: true, duration: true },
+  });
+
+  await prisma.$transaction([
+    prisma.workoutExercise.update({
+      where: { id: exerciseId },
+      data: { name: newName.trim(), notes: null },
+    }),
+    ...exercise.sets.map((s) => {
+      const prev = lastSets.find((ls) => ls.setNumber === s.setNumber);
+      return prisma.set.update({
+        where: { id: s.id },
+        data: {
+          weight: prev?.weight ?? null,
+          reps: prev?.reps ?? null,
+          duration: prev?.duration ?? null,
+          completed: false,
+        },
+      });
+    }),
+  ]);
+
+  // Upsert new name into library
+  await prisma.exerciseLibrary.upsert({
+    where: { name: newName.trim() },
+    create: { name: newName.trim() },
+    update: {},
+  });
+
+  return prisma.workoutExercise.findUniqueOrThrow({
+    where: { id: exerciseId },
+    include: { sets: { orderBy: { setNumber: "asc" } } },
+  });
+}
+
 // ─── AI Workout Generator ────────────────────────────────────────────────────
 
 type AiExercise = {
