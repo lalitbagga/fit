@@ -565,7 +565,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                 </div>
               ) : swapSuggestions.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {swapSuggestions.map((s) => (
+                  {swapSuggestions.filter((s) => !exercises.some((ex) => ex.name === s)).map((s) => (
                     <button
                       key={s}
                       onClick={() => setSwapName(s)}
@@ -584,7 +584,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
             </div>
             <p className="text-xs text-muted-foreground -mt-2">Or search manually:</p>
             <ExerciseCombobox
-              library={exerciseLibrary.filter((n) => n !== swapTarget.name)}
+              library={exerciseLibrary.filter((n) => !exercises.some((ex) => ex.name === n))}
               value={swapName}
               onChange={setSwapName}
             />
