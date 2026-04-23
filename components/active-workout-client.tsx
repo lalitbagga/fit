@@ -17,7 +17,6 @@ import {
   type ExerciseInput,
 } from "@/lib/actions";
 import { cn } from "@/lib/utils";
-import { useUnit } from "@/lib/unit-context";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -119,7 +118,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   const [swapSuggestions, setSwapSuggestions] = useState<string[]>([]);
   const [swapSuggestionsLoading, setSwapSuggestionsLoading] = useState(false);
 
-  const { label: unitLabel, fromDisplay } = useUnit();
+  const unitLabel = "lb";
 
   // AI weight recommendations
   const [aiTips, setAiTips] = useState<Record<string, string>>({});
@@ -226,7 +225,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
         const ls = localData[ex.id]?.[s.id];
         return {
           setId: s.id,
-          weight: ls?.weight ? fromDisplay(parseFloat(ls.weight)) : null,
+          weight: ls?.weight ? parseFloat(ls.weight) : null,
           reps: ls?.reps ? parseInt(ls.reps, 10) : null,
           duration: ls?.duration ? parseInt(ls.duration, 10) : null,
           completed: ls?.completed ?? false,

@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { UnitProvider } from "@/lib/unit-context";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -33,10 +32,8 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={inter.className}>
         <div className="min-h-screen bg-background">
-          <UnitProvider>
-            {/* Mobile-first max-width container */}
-            <main className="mx-auto max-w-lg px-4 pb-8">{children}</main>
-          </UnitProvider>
+          {/* Mobile-first max-width container */}
+          <main className="mx-auto max-w-lg px-4 pb-8">{children}</main>
         </div>
       </body>
     </html>

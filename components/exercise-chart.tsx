@@ -14,7 +14,6 @@ import {
 } from "recharts";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { useUnit } from "@/lib/unit-context";
 import type { ProgressPoint } from "@/lib/actions";
 
 type Tab = "weight" | "volume";
@@ -22,13 +21,9 @@ type TooltipEntry = { value?: number; name?: string };
 
 export function ExerciseChart({ data }: { data: ProgressPoint[] }) {
   const [tab, setTab] = useState<Tab>("weight");
-  const { label, toDisplay } = useUnit();
+  const label = "lb";
 
-  const displayData = data.map((d) => ({
-    ...d,
-    maxWeight: toDisplay(d.maxWeight),
-    totalVolume: toDisplay(d.totalVolume),
-  }));
+  const displayData = data;
 
   function Tooltip_({ active, payload, label: lbl }: { active?: boolean; payload?: TooltipEntry[]; label?: string }) {
     if (!active || !payload?.length) return null;

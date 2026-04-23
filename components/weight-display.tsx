@@ -1,27 +1,20 @@
 "use client";
 
-import { useUnit } from "@/lib/unit-context";
-
 export function WeightCell({ kg }: { kg: number | null }) {
-  const { toDisplay, label } = useUnit();
   if (kg === null || kg === undefined) return <>—</>;
-  return <>{toDisplay(kg)} {label}</>;
+  return <>{kg} lb</>;
 }
 
 export function VolumeCell({ kgVol }: { kgVol: number }) {
-  const { toDisplay, label } = useUnit();
   if (kgVol <= 0) return <>—</>;
-  const val = toDisplay(kgVol);
-  return <>{val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val}</>;
+  return <>{kgVol >= 1000 ? `${(kgVol / 1000).toFixed(1)}k` : kgVol}</>;
 }
 
 export function UnitLabel() {
-  const { label } = useUnit();
-  return <>{label}</>;
+  return <>lb</>;
 }
 
 export function WeightDelta({ firstKg, lastKg }: { firstKg: number; lastKg: number }) {
-  const { toDisplay } = useUnit();
-  const delta = Math.round((toDisplay(lastKg) - toDisplay(firstKg)) * 10) / 10;
+  const delta = Math.round((lastKg - firstKg) * 10) / 10;
   return <>{delta > 0 ? "+" : ""}{delta}</>;
 }
