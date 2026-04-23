@@ -15,9 +15,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: "/login",
   },
+  logger: {
+    error: (error) => {
+      console.error("[AUTH ERROR]", error);
+    },
+    warn: (code) => {
+      console.warn("[AUTH WARN]", code);
+    },
+    debug: (message, metadata) => {
+      console.log("[AUTH DEBUG]", message, JSON.stringify(metadata));
+    },
+  },
   callbacks: {
     session({ session, user }) {
-      // Expose the DB user id on the session object
       session.user.id = user.id;
       return session;
     },
