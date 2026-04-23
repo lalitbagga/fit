@@ -13,6 +13,7 @@ import {
   addExerciseToWorkout,
   getWeightRecommendation,
   swapExercise,
+  getSwapSuggestions,
   type ExerciseInput,
 } from "@/lib/actions";
 import { cn } from "@/lib/utils";
@@ -115,6 +116,8 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   const [swapTarget, setSwapTarget] = useState<ExerciseData | null>(null);
   const [swapName, setSwapName] = useState("");
   const [swapPending, startSwap] = useTransition();
+  const [swapSuggestions, setSwapSuggestions] = useState<string[]>([]);
+  const [swapSuggestionsLoading, setSwapSuggestionsLoading] = useState(false);
 
   // Unit is always lb — convert pre-filled kg values once on mount
   const { label: unitLabel, fromDisplay } = useUnit();
@@ -311,7 +314,16 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                     </span>
                   )}
                   <button
-                    onClick={() => { setSwapTarget(ex); setSwapName(""); }}
+                    onClick={() => {
+                      setSwapTarget(ex);
+                      setSwapName("");
+                      setSwapSuggestions([]);
+                      setSwapSuggestionsLoading(true);
+                      getSwapSuggestions(ex.name).then((s) => {
+                        setSwapSuggestions(s);
+                        setSwapSuggestionsLoading(false);
+                      }).catch(() => setSwapSuggestionsLoading(false));
+                    }}
                     className="p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
                     aria-label={`Swap ${ex.name}`}
                   >
@@ -540,6 +552,37 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                 <X className="h-4 w-4" />
               </button>
             </div>
+            {/* AI suggestions */}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                AI suggestions
+              </p>
+              {swapSuggestionsLoading ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Finding alternatives…
+                </div>
+              ) : swapSuggestions.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {swapSuggestions.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setSwapName(s)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                        swapName === s
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-muted text-foreground border-border hover:border-primary/60"
+                      )}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <p className="text-xs text-muted-foreground -mt-2">Or search manually:</p>
             <ExerciseCombobox
               library={exerciseLibrary.filter((n) => n !== swapTarget.name)}
               value={swapName}

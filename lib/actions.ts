@@ -548,6 +548,38 @@ export async function swapExercise(
   });
 }
 
+// ─── AI Swap Suggestions ─────────────────────────────────────────────────────
+
+export async function getSwapSuggestions(exerciseName: string): Promise<string[]> {
+  await getCurrentUserId();
+
+  const library = await prisma.exerciseLibrary.findMany({ select: { name: true } });
+  const libraryNames = library.map((e) => e.name).join(", ");
+
+  const client = new Anthropic();
+  const msg = await client.messages.create({
+    model: "claude-opus-4-7",
+    max_tokens: 256,
+    system:
+      "You are a personal trainer. Given an exercise and a list of available exercises, suggest 3 alternatives that target the same or similar muscle groups. Respond ONLY with a valid JSON array of exactly 3 strings (exercise names), chosen from the provided library. No explanation, no markdown.",
+    messages: [
+      {
+        role: "user",
+        content: `Exercise to replace: "${exerciseName}"\n\nAvailable exercises: ${libraryNames}\n\nReturn exactly 3 alternatives as a JSON array.`,
+      },
+    ],
+  });
+
+  const text = msg.content[0].type === "text" ? msg.content[0].text.trim() : "[]";
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) return parsed.slice(0, 3).map(String);
+  } catch {
+    // fall through
+  }
+  return [];
+}
+
 // ─── AI Workout Generator ────────────────────────────────────────────────────
 
 type AiExercise = {
