@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { ArrowLeftRight, CheckCircle2, Circle, Info, Loader2, MessageSquare, Plus, Save, Sparkles, Timer, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,30 +119,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   const [swapSuggestions, setSwapSuggestions] = useState<string[]>([]);
   const [swapSuggestionsLoading, setSwapSuggestionsLoading] = useState(false);
 
-  // Unit is always lb — convert pre-filled kg values once on mount
   const { label: unitLabel, fromDisplay } = useUnit();
-  const convertedRef = useRef(false);
-
-  useEffect(() => {
-    if (convertedRef.current) return;
-    convertedRef.current = true;
-    setLocalData((prev) => {
-      const next: typeof prev = {};
-      for (const exId in prev) {
-        next[exId] = {};
-        for (const setId in prev[exId]) {
-          const ls = prev[exId][setId];
-          next[exId][setId] = {
-            ...ls,
-            weight: ls.weight
-              ? String(Math.round(parseFloat(ls.weight) * 2.20462 * 10) / 10)
-              : "",
-          };
-        }
-      }
-      return next;
-    });
-  }, []);
 
   // AI weight recommendations
   const [aiTips, setAiTips] = useState<Record<string, string>>({});
@@ -226,7 +203,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
           updated.sets.map((s) => [
             s.id,
             {
-              weight: s.weight ? String(Math.round(s.weight * 2.20462 * 10) / 10) : "",
+              weight: s.weight?.toString() ?? "",
               reps: s.reps?.toString() ?? "",
               duration: s.duration?.toString() ?? "",
               completed: false,
