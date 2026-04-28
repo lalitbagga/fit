@@ -133,18 +133,34 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   const [aiTips, setAiTips] = useState<Record<string, string>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
 
-  // ── Rest timer ─────────────────────────────────────────────────────────────
+  // ── Rest timer — use end-timestamp so screen lock doesn't freeze it ────────
+  const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
 
   useEffect(() => {
-    if (restSeconds === null) return;
-    if (restSeconds <= 0) {
-      const t = setTimeout(() => setRestSeconds(null), 1500);
-      return () => clearTimeout(t);
+    if (restEndsAt === null) { setRestSeconds(null); return; }
+
+    function tick() {
+      const remaining = Math.ceil((restEndsAt! - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setRestSeconds(0);
+        const t = setTimeout(() => { setRestEndsAt(null); setRestSeconds(null); }, 1500);
+        return () => clearTimeout(t);
+      }
+      setRestSeconds(remaining);
     }
-    const t = setInterval(() => setRestSeconds((s) => (s ?? 1) - 1), 1000);
-    return () => clearInterval(t);
-  }, [restSeconds]);
+
+    tick();
+    const interval = setInterval(tick, 500);
+
+    function onVisible() { if (document.visibilityState === "visible") tick(); }
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [restEndsAt]);
 
   // ── Persist draft to localStorage so background/foreground doesn't lose data
   useEffect(() => {
@@ -176,7 +192,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   function toggleSet(exId: string, setId: string) {
     const wasCompleted = localData[exId]?.[setId]?.completed ?? false;
     updateSet(exId, setId, "completed", !wasCompleted);
-    if (!wasCompleted) setRestSeconds(REST_SECONDS);
+    if (!wasCompleted) setRestEndsAt(Date.now() + REST_SECONDS * 1000);
   }
 
   // ── Add custom exercise ────────────────────────────────────────────────────
@@ -632,7 +648,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
           </span>
           {restSeconds > 0 && (
             <button
-              onClick={() => setRestSeconds(null)}
+              onClick={() => setRestEndsAt(null)}
               className="ml-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Skip
