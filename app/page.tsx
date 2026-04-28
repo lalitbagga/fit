@@ -195,7 +195,7 @@ export default async function Dashboard() {
         </div>
       )}
       <p className="text-center text-[10px] text-muted-foreground/40 pb-2">
-        v{process.env.NEXT_PUBLIC_COMMIT_SHA}
+        v{process.env.NEXT_PUBLIC_APP_VERSION}
       </p>
     </div>
   );

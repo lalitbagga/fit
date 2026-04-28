@@ -1,11 +1,9 @@
 import type { NextConfig } from "next";
-import { execSync } from "child_process";
-
-const sha = execSync("git rev-parse --short HEAD").toString().trim();
+import { version } from "./package.json";
 
 const nextConfig: NextConfig = {
   env: {
-    NEXT_PUBLIC_COMMIT_SHA: sha,
+    NEXT_PUBLIC_APP_VERSION: version,
   },
 };
 
