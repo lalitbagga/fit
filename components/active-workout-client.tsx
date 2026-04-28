@@ -72,29 +72,38 @@ function emptyLocalSet(): LocalSet {
 export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, targets, exerciseLibrary, gifUrls }: Props) {
   const [exercises, setExercises] = useState<ExerciseData[]>(initialExercises);
 
-  const [localData, setLocalData] = useState<Record<string, Record<string, LocalSet>>>(
-    () =>
-      Object.fromEntries(
-        initialExercises.map((ex) => [
-          ex.id,
-          Object.fromEntries(
-            ex.sets.map((s) => [
-              s.id,
-              {
-                weight: s.weight?.toString() ?? "",
-                reps: s.reps?.toString() ?? "",
-                duration: s.duration?.toString() ?? "",
-                completed: s.completed,
-              },
-            ])
-          ),
-        ])
-      )
-  );
+  const storageKey = `workout-draft-${workoutId}`;
 
-  const [notes, setNotes] = useState<Record<string, string>>(
-    () => Object.fromEntries(initialExercises.map((ex) => [ex.id, ex.notes ?? ""]))
-  );
+  const [localData, setLocalData] = useState<Record<string, Record<string, LocalSet>>>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) return JSON.parse(saved).localData;
+    } catch {}
+    return Object.fromEntries(
+      initialExercises.map((ex) => [
+        ex.id,
+        Object.fromEntries(
+          ex.sets.map((s) => [
+            s.id,
+            {
+              weight: s.weight?.toString() ?? "",
+              reps: s.reps?.toString() ?? "",
+              duration: s.duration?.toString() ?? "",
+              completed: s.completed,
+            },
+          ])
+        ),
+      ])
+    );
+  });
+
+  const [notes, setNotes] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) return JSON.parse(saved).notes;
+    } catch {}
+    return Object.fromEntries(initialExercises.map((ex) => [ex.id, ex.notes ?? ""]));
+  });
   const [notesOpen, setNotesOpen] = useState<Record<string, boolean>>(
     () => Object.fromEntries(initialExercises.map((ex) => [ex.id, !!ex.notes]))
   );
@@ -136,6 +145,13 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
     const t = setInterval(() => setRestSeconds((s) => (s ?? 1) - 1), 1000);
     return () => clearInterval(t);
   }, [restSeconds]);
+
+  // ── Persist draft to localStorage so background/foreground doesn't lose data
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ localData, notes }));
+    } catch {}
+  }, [localData, notes, storageKey]);
 
   // ── Derived stats ──────────────────────────────────────────────────────────
   const totalSets = exercises.reduce((n, ex) => n + ex.sets.length, 0);
@@ -233,12 +249,14 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
       }),
     }));
     startSave(async () => {
+      localStorage.removeItem(storageKey);
       await saveWorkout(workoutId, payload);
     });
   }
 
   function handleCancel() {
     startCancel(async () => {
+      localStorage.removeItem(storageKey);
       await cancelWorkout(workoutId);
     });
   }
