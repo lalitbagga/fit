@@ -147,6 +147,21 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
       if (remaining <= 0) {
         setRestSeconds(0);
         haptic.confirm();
+        try {
+          const ctx = new AudioContext();
+          [0, 0.25].forEach((delay) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 880;
+            gain.gain.setValueAtTime(0.4, ctx.currentTime + delay);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.2);
+            osc.start(ctx.currentTime + delay);
+            osc.stop(ctx.currentTime + delay + 0.2);
+          });
+        } catch {}
+
         const t = setTimeout(() => { setRestEndsAt(null); setRestSeconds(null); }, 1500);
         return () => clearTimeout(t);
       }
