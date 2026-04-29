@@ -21,11 +21,14 @@ export function AiWorkoutGenerator() {
   const [open, setOpen] = useState(false);
   const [energy, setEnergy] = useState<Energy>("medium");
   const [focus, setFocus] = useState(FOCUS_OPTIONS[0].value);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function handleGenerate() {
+    setError(null);
     startTransition(async () => {
-      await generateAiWorkout(energy, focus);
+      const result = await generateAiWorkout(energy, focus);
+      if (result?.error) setError(result.error);
     });
   }
 
@@ -147,6 +150,9 @@ export function AiWorkoutGenerator() {
                 <p className="text-center text-xs text-muted-foreground -mt-2">
                   Analysing your history and building a personalised session…
                 </p>
+              )}
+              {error && (
+                <p className="text-center text-xs text-red-400 -mt-2">{error}</p>
               )}
             </div>
           </div>

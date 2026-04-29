@@ -548,10 +548,53 @@ export async function swapExercise(
   });
 }
 
+// ─── AI quota (3 calls/month for non-owners) ─────────────────────────────────
+
+const OWNER_EMAIL = "lbagga.dev@gmail.com";
+const MONTHLY_AI_LIMIT = 3;
+
+async function checkAndIncrementAiQuota(userId: string): Promise<void> {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { email: true, aiCallsThisMonth: true, aiCallsResetAt: true },
+  });
+
+  if (user.email === OWNER_EMAIL) return;
+
+  const now = new Date();
+  const resetAt = new Date(user.aiCallsResetAt);
+  const isNewMonth =
+    now.getFullYear() !== resetAt.getFullYear() ||
+    now.getMonth() !== resetAt.getMonth();
+
+  if (isNewMonth) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { aiCallsThisMonth: 1, aiCallsResetAt: now },
+    });
+    return;
+  }
+
+  if (user.aiCallsThisMonth >= MONTHLY_AI_LIMIT) {
+    throw new Error(`Monthly AI limit reached (${MONTHLY_AI_LIMIT} calls/month)`);
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { aiCallsThisMonth: { increment: 1 } },
+  });
+}
+
 // ─── AI Swap Suggestions ─────────────────────────────────────────────────────
 
-export async function getSwapSuggestions(exerciseName: string): Promise<string[]> {
-  await getCurrentUserId();
+export async function getSwapSuggestions(exerciseName: string): Promise<{ suggestions: string[]; error?: string }> {
+  const userId = await getCurrentUserId();
+
+  try {
+    await checkAndIncrementAiQuota(userId);
+  } catch (e) {
+    return { suggestions: [], error: (e as Error).message };
+  }
 
   const library = await prisma.exerciseLibrary.findMany({ select: { name: true } });
   const libraryNames = library.map((e) => e.name).join(", ");
@@ -573,11 +616,11 @@ export async function getSwapSuggestions(exerciseName: string): Promise<string[]
   const text = msg.content[0].type === "text" ? msg.content[0].text.trim() : "[]";
   try {
     const parsed = JSON.parse(text);
-    if (Array.isArray(parsed)) return parsed.slice(0, 3).map(String);
+    if (Array.isArray(parsed)) return { suggestions: parsed.slice(0, 3).map(String) };
   } catch {
     // fall through
   }
-  return [];
+  return { suggestions: [] };
 }
 
 // ─── AI Workout Generator ────────────────────────────────────────────────────
@@ -593,8 +636,14 @@ type AiExercise = {
 export async function generateAiWorkout(
   energyLevel: "low" | "medium" | "high",
   focus: string
-): Promise<void> {
+): Promise<{ error?: string }> {
   const userId = await getCurrentUserId();
+
+  try {
+    await checkAndIncrementAiQuota(userId);
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
 
   const [recentWorkouts, library] = await Promise.all([
     prisma.workout.findMany({

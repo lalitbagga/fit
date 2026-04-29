@@ -15,11 +15,13 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
-  weight        Float     @default(73)
-  createdAt     DateTime  @default(now())
-  accounts      Account[]
-  sessions      Session[]
-  workouts      Workout[]
+  weight            Float     @default(73)
+  aiCallsThisMonth  Int       @default(0)
+  aiCallsResetAt    DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  accounts          Account[]
+  sessions          Session[]
+  workouts          Workout[]
 }
 
 model Account {

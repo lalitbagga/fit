@@ -125,6 +125,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   const [swapName, setSwapName] = useState("");
   const [swapPending, startSwap] = useTransition();
   const [swapSuggestions, setSwapSuggestions] = useState<string[]>([]);
+  const [swapSuggestionsError, setSwapSuggestionsError] = useState<string | null>(null);
   const [swapSuggestionsLoading, setSwapSuggestionsLoading] = useState(false);
 
   const unitLabel = "lb";
@@ -328,9 +329,11 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                       setSwapTarget(ex);
                       setSwapName("");
                       setSwapSuggestions([]);
+                      setSwapSuggestionsError(null);
                       setSwapSuggestionsLoading(true);
-                      getSwapSuggestions(ex.name).then((s) => {
-                        setSwapSuggestions(s);
+                      getSwapSuggestions(ex.name).then(({ suggestions, error }) => {
+                        setSwapSuggestions(suggestions);
+                        setSwapSuggestionsError(error ?? null);
                         setSwapSuggestionsLoading(false);
                       }).catch(() => setSwapSuggestionsLoading(false));
                     }}
@@ -573,6 +576,8 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   Finding alternatives…
                 </div>
+              ) : swapSuggestionsError ? (
+                <p className="text-xs text-red-400">{swapSuggestionsError}</p>
               ) : swapSuggestions.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {swapSuggestions.filter((s) => !exercises.some((ex) => ex.name === s)).map((s) => (
