@@ -145,6 +145,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
       const remaining = Math.ceil((restEndsAt! - Date.now()) / 1000);
       if (remaining <= 0) {
         setRestSeconds(0);
+        navigator.vibrate?.([200, 100, 200]);
         const t = setTimeout(() => { setRestEndsAt(null); setRestSeconds(null); }, 1500);
         return () => clearTimeout(t);
       }
