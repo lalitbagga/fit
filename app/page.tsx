@@ -12,6 +12,7 @@ import {
   getRecentWorkouts,
   getTemplates,
   getInProgressWorkout,
+  cancelWorkout,
 } from "@/lib/actions";
 import { formatDate } from "@/lib/utils";
 
@@ -86,9 +87,21 @@ export default async function Dashboard() {
                 {inProgress.template?.emoji} {inProgress.template?.name}
               </p>
             </div>
-            <Button size="sm" asChild>
-              <Link href={`/workout/${inProgress.id}`}>Resume</Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <form
+                action={async () => {
+                  "use server";
+                  await cancelWorkout(inProgress.id);
+                }}
+              >
+                <Button type="submit" size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive">
+                  Discard
+                </Button>
+              </form>
+              <Button size="sm" asChild>
+                <Link href={`/workout/${inProgress.id}`}>Resume</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

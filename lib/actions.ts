@@ -53,6 +53,9 @@ export async function startWorkout(templateId: string) {
     previousData.map((d) => [d.exerciseName, d.lastSets])
   );
 
+  // Clean up any abandoned in-progress workouts before starting a new one
+  await prisma.workout.deleteMany({ where: { userId, completedAt: null } });
+
   const workout = await prisma.workout.create({
     data: {
       userId,
@@ -802,6 +805,9 @@ Generate a personalized workout.`,
   const aiSuggestions = Object.fromEntries(
     plan.exercises.map((ex) => [ex.name, ex.suggestedWeight ?? null])
   );
+
+  // Clean up any abandoned in-progress workouts before starting a new one
+  await prisma.workout.deleteMany({ where: { userId, completedAt: null } });
 
   const workout = await prisma.workout.create({
     data: {
