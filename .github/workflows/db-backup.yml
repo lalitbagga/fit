@@ -10,8 +10,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout backup repo
         uses: actions/checkout@v4
+        with:
+          repository: lbagga2xs/fit2x-backups
+          token: ${{ secrets.BACKUP_REPO_TOKEN }}
+          path: backup-repo
 
       - name: Install PostgreSQL client
         run: sudo apt-get install -y postgresql-client
@@ -20,21 +24,22 @@ jobs:
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
         run: |
-          mkdir -p backups
+          mkdir -p backup-repo/backups
           pg_dump "$DIRECT_URL" \
             --no-password \
             --format=plain \
             --no-owner \
             --no-acl \
-            -f "backups/backup-$(date +%Y-%m-%d).sql"
-          echo "Backup created: backups/backup-$(date +%Y-%m-%d).sql"
+            -f "backup-repo/backups/backup-$(date +%Y-%m-%d).sql"
+          echo "Backup created: backup-repo/backups/backup-$(date +%Y-%m-%d).sql"
 
       - name: Remove backups older than 30 days
         run: |
-          find backups/ -name "backup-*.sql" -mtime +30 -delete
+          find backup-repo/backups/ -name "backup-*.sql" -mtime +30 -delete
 
-      - name: Commit and push
+      - name: Commit and push to backup repo
         run: |
+          cd backup-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add backups/
