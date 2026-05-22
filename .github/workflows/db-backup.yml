@@ -13,7 +13,7 @@ jobs:
       - name: Checkout backup repo
         uses: actions/checkout@v4
         with:
-          repository: lbagga2xs/fit2x-backups
+          repository: lalitbagga/fit2x-backups
           token: ${{ secrets.BACKUP_REPO_TOKEN }}
           path: backup-repo
 
