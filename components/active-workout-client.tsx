@@ -444,6 +444,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                         className="col-span-2 h-10 text-center text-base font-medium"
                         value={ls?.duration ?? ""}
                         onChange={(e) => updateSet(ex.id, s.id, "duration", e.target.value)}
+                        onFocus={(e) => e.target.select()}
                       />
                     ) : (
                       <>
@@ -454,6 +455,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                           className="h-10 text-center text-base font-medium"
                           value={ls?.weight ?? ""}
                           onChange={(e) => updateSet(ex.id, s.id, "weight", e.target.value)}
+                          onFocus={(e) => e.target.select()}
                         />
                         <Input
                           type="number"
@@ -462,6 +464,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                           className="h-10 text-center text-base font-medium"
                           value={ls?.reps ?? ""}
                           onChange={(e) => updateSet(ex.id, s.id, "reps", e.target.value)}
+                          onFocus={(e) => e.target.select()}
                         />
                       </>
                     )}
