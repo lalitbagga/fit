@@ -1,23 +1,23 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
-import { ArrowLeftRight, CheckCircle2, Circle, Info, Loader2, MessageSquare, Plus, Save, Sparkles, Timer, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExerciseCombobox } from "@/components/exercise-combobox";
 import { ExerciseGuideModal } from "@/components/exercise-guide-modal";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
-  saveWorkout,
-  cancelWorkout,
   addExerciseToWorkout,
-  getWeightRecommendation,
-  swapExercise,
+  cancelWorkout,
   getSwapSuggestions,
+  getWeightRecommendation,
+  saveWorkout,
+  swapExercise,
   type ExerciseInput,
 } from "@/lib/actions";
-import { haptic } from "ios-haptics";
 import { cn } from "@/lib/utils";
+import { haptic } from "ios-haptics";
+import { ArrowLeftRight, CheckCircle2, Circle, Info, Loader2, MessageSquare, Plus, Save, Sparkles, Timer, X } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -117,6 +117,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
 
   const [savePending, startSave] = useTransition();
   const [cancelPending, startCancel] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Exercise guide modal
   const [guideExercise, setGuideExercise] = useState<{ name: string; gifUrl: string | null } | null>(null);
@@ -268,6 +269,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
 
   // ── Save ───────────────────────────────────────────────────────────────────
   function handleSave() {
+    setSaveError(null);
     const payload: ExerciseInput[] = exercises.map((ex) => ({
       exerciseId: ex.id,
       notes: notes[ex.id] ?? "",
@@ -283,8 +285,13 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
       }),
     }));
     startSave(async () => {
+      const result = await saveWorkout(workoutId, payload);
+      if (result?.error) {
+        setSaveError(result.error);
+        return;
+      }
+      // Only clear the draft after a confirmed save (redirect means we won't reach here on success)
       localStorage.removeItem(storageKey);
-      await saveWorkout(workoutId, payload);
     });
   }
 
@@ -635,6 +642,13 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
             </Button>
           </div>
         </>
+      )}
+
+      {/* ── Save error ───────────────────────────────────────────────────── */}
+      {saveError && (
+        <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {saveError}
+        </div>
       )}
 
       {/* ── Action buttons ───────────────────────────────────────────────── */}

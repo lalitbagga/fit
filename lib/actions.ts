@@ -1,10 +1,10 @@
 "use server";
 
+import { auth } from "@/auth";
 import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "./prisma";
-import { auth } from "@/auth";
 import { toLocalDateStr } from "./utils";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ export type ExerciseInput = {
 export async function saveWorkout(
   workoutId: string,
   exercises: ExerciseInput[]
-) {
+): Promise<{ error: string } | never> {
   const setUpdates = exercises.flatMap((ex) =>
     ex.sets.map((s) =>
       prisma.set.update({
@@ -128,14 +128,19 @@ export async function saveWorkout(
     })
   );
 
-  await prisma.$transaction([
-    ...setUpdates,
-    ...noteUpdates,
-    prisma.workout.update({
-      where: { id: workoutId },
-      data: { completedAt: new Date() },
-    }),
-  ]);
+  try {
+    await prisma.$transaction([
+      ...setUpdates,
+      ...noteUpdates,
+      prisma.workout.update({
+        where: { id: workoutId },
+        data: { completedAt: new Date() },
+      }),
+    ]);
+  } catch (e) {
+    console.error("saveWorkout failed:", e);
+    return { error: "Couldn't reach the database. Your data is safe — tap Save again to retry." };
+  }
 
   revalidatePath("/");
   redirect("/");
