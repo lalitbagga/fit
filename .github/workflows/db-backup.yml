@@ -15,6 +15,7 @@ jobs:
         with:
           repository: lalitbagga/fit2x-backups
           token: ${{ secrets.BACKUP_REPO_TOKEN }}
+          ref: main
           path: backup-repo
 
       - name: Install PostgreSQL client
