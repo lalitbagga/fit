@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "./prisma";
 import { toLocalDateStr } from "./utils";
+import { workoutsStarted, workoutsCompleted, setsLogged } from "./metrics";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ export async function startWorkout(templateId: string) {
     },
   });
 
+  workoutsStarted.inc();
   redirect(`/workout/${workout.id}`);
 }
 
@@ -141,6 +143,10 @@ export async function saveWorkout(
     console.error("saveWorkout failed:", e);
     return { error: "Couldn't reach the database. Your data is safe — tap Save again to retry." };
   }
+
+  const completedSets = exercises.flatMap((ex) => ex.sets).filter((s) => s.completed).length;
+  workoutsCompleted.inc();
+  setsLogged.inc(completedSets);
 
   revalidatePath("/");
   redirect("/");
