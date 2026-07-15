@@ -1,8 +1,8 @@
-name: Daily DB Backup
+name: Weekly DB Backup
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # 2am UTC every day
+    - cron: '0 2 * * 0'  # 2am UTC every Sunday
   workflow_dispatch:       # Also allow manual trigger from GitHub UI
 
 jobs:
