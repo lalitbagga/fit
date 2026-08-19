@@ -107,7 +107,8 @@ export type ExerciseInput = {
  */
 export async function saveWorkout(
   workoutId: string,
-  exercises: ExerciseInput[]
+  exercises: ExerciseInput[],
+  workoutNotes: string
 ): Promise<{ error: string } | never> {
   const setUpdates = exercises.flatMap((ex) =>
     ex.sets.map((s) =>
@@ -136,7 +137,10 @@ export async function saveWorkout(
       ...noteUpdates,
       prisma.workout.update({
         where: { id: workoutId },
-        data: { completedAt: new Date() },
+        data: {
+          notes: workoutNotes.trim() || null,
+          completedAt: new Date(),
+        },
       }),
     ]);
   } catch (e) {
@@ -344,6 +348,35 @@ export async function addExerciseToWorkout(
   return exercise;
 }
 
+// ─── Delete exercise from an in-progress workout ─────────────────────────────
+
+export async function deleteExerciseFromWorkout(
+  workoutId: string,
+  exerciseId: string
+): Promise<{ error?: string }> {
+  const userId = await getCurrentUserId();
+  const exercise = await prisma.workoutExercise.findFirst({
+    where: {
+      id: exerciseId,
+      workoutId,
+      workout: { userId, completedAt: null },
+    },
+    select: { id: true },
+  });
+
+  if (!exercise) return { error: "Exercise not found in this active workout." };
+
+  try {
+    await prisma.workoutExercise.delete({ where: { id: exerciseId } });
+  } catch (error) {
+    console.error("deleteExerciseFromWorkout failed:", error);
+    return { error: "Could not delete the exercise. Please try again." };
+  }
+
+  revalidatePath(`/workout/${workoutId}`);
+  return {};
+}
+
 // ─── Progress / Graphs ───────────────────────────────────────────────────────
 
 export async function getExerciseSummaries() {
@@ -454,8 +487,10 @@ export async function getAllWorkouts() {
 }
 
 export async function getWorkoutDetail(workoutId: string) {
+  const userId = await getCurrentUserId();
+
   return prisma.workout.findUniqueOrThrow({
-    where: { id: workoutId },
+    where: { id: workoutId, userId },
     include: {
       template: { select: { name: true, emoji: true } },
       exercises: {
@@ -464,6 +499,120 @@ export async function getWorkoutDetail(workoutId: string) {
       },
     },
   });
+}
+
+export type HistoryExerciseSetInput = {
+  setId: string;
+  weight: number | null;
+  reps: number | null;
+  duration: number | null;
+  completed: boolean;
+};
+
+export async function updateHistoryExercise(
+  exerciseId: string,
+  data: { name: string; notes: string; sets: HistoryExerciseSetInput[] }
+): Promise<{ error?: string }> {
+  const userId = await getCurrentUserId();
+  const name = data.name.trim();
+
+  if (!name) return { error: "Exercise name is required." };
+
+  const exercise = await prisma.workoutExercise.findFirst({
+    where: {
+      id: exerciseId,
+      workout: { userId, completedAt: { not: null } },
+    },
+    include: { sets: { select: { id: true } } },
+  });
+
+  if (!exercise) return { error: "Exercise not found." };
+
+  const savedSetIds = new Set(exercise.sets.map((set) => set.id));
+  if (
+    data.sets.length !== savedSetIds.size ||
+    data.sets.some((set) => !savedSetIds.has(set.setId))
+  ) {
+    return { error: "The exercise sets changed. Refresh and try again." };
+  }
+
+  const validNumber = (value: number | null) =>
+    value === null || (Number.isFinite(value) && value >= 0);
+  if (
+    data.sets.some(
+      (set) =>
+        !validNumber(set.weight) ||
+        !validNumber(set.reps) ||
+        !validNumber(set.duration) ||
+        (set.reps !== null && !Number.isInteger(set.reps)) ||
+        (set.duration !== null && !Number.isInteger(set.duration))
+    )
+  ) {
+    return { error: "Set values must be zero or greater, with whole numbers for reps and seconds." };
+  }
+
+  try {
+    await prisma.$transaction([
+      prisma.workoutExercise.update({
+        where: { id: exerciseId },
+        data: { name, notes: data.notes.trim() || null },
+      }),
+      ...data.sets.map((set) =>
+        prisma.set.update({
+          where: { id: set.setId },
+          data: {
+            weight: set.weight,
+            reps: set.reps,
+            duration: set.duration,
+            completed: set.completed,
+          },
+        })
+      ),
+    ]);
+
+    await prisma.exerciseLibrary.upsert({
+      where: { name },
+      create: { name },
+      update: {},
+    });
+  } catch (error) {
+    console.error("updateHistoryExercise failed:", error);
+    return { error: "Could not save the exercise. Please try again." };
+  }
+
+  revalidatePath("/history");
+  revalidatePath(`/history/${exercise.workoutId}`);
+  revalidatePath("/progress");
+  revalidatePath("/");
+  return {};
+}
+
+export async function deleteHistoryExercise(
+  exerciseId: string
+): Promise<{ error?: string }> {
+  const userId = await getCurrentUserId();
+  const exercise = await prisma.workoutExercise.findFirst({
+    where: {
+      id: exerciseId,
+      workout: { userId, completedAt: { not: null } },
+    },
+    select: { id: true, workoutId: true },
+  });
+
+  if (!exercise) return { error: "Exercise not found." };
+
+  try {
+    await prisma.workoutExercise.delete({ where: { id: exerciseId } });
+  } catch (error) {
+    console.error("deleteHistoryExercise failed:", error);
+    return { error: "Could not delete the exercise. Please try again." };
+  }
+
+  revalidatePath("/history");
+  revalidatePath(`/history/${exercise.workoutId}`);
+  revalidatePath("/progress");
+  revalidatePath("/");
+  return {};
 }
 
 // ─── Active Workout Data ──────────────────────────────────────────────────────

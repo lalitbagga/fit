@@ -10,18 +10,18 @@ datasource db {
 
 // ─── Auth.js required models ──────────────────────────────────────────────────
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  weight            Float     @default(73)
-  aiCallsThisMonth  Int       @default(0)
-  aiCallsResetAt    DateTime  @default(now())
-  createdAt         DateTime  @default(now())
-  accounts          Account[]
-  sessions          Session[]
-  workouts          Workout[]
+  id               String    @id @default(cuid())
+  name             String?
+  email            String?   @unique
+  emailVerified    DateTime?
+  image            String?
+  weight           Float     @default(73)
+  aiCallsThisMonth Int       @default(0)
+  aiCallsResetAt   DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+  accounts         Account[]
+  sessions         Session[]
+  workouts         Workout[]
 }
 
 model Account {
@@ -94,15 +94,16 @@ model Workout {
   user        User              @relation(fields: [userId], references: [id])
   templateId  String?
   template    WorkoutTemplate?  @relation(fields: [templateId], references: [id])
+  notes       String?
   completedAt DateTime?
   createdAt   DateTime          @default(now())
   exercises   WorkoutExercise[]
 }
 
 model WorkoutExercise {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   workoutId String
-  workout   Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  workout   Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   name      String
   order     Int
   notes     String?

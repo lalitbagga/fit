@@ -80,6 +80,7 @@ export default async function WorkoutPage({ params }: Props) {
       {/* ── Interactive workout logger ───────────────── */}
       <ActiveWorkoutClient
         workoutId={workout.id}
+        workoutNotes={workout.notes}
         exercises={workout.exercises}
         targets={targets}
         exerciseLibrary={exerciseLibrary}

@@ -1,22 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Circle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { getWorkoutDetail } from "@/lib/actions";
 import { formatDate } from "@/lib/utils";
-import { cn } from "@/lib/utils";
-import { WeightCell, VolumeCell, UnitLabel } from "@/components/weight-display";
+import { VolumeCell, UnitLabel } from "@/components/weight-display";
+import { HistoryExerciseCard } from "@/components/history-exercise-card";
 
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
-
-function isTimed(val: number | null, weight: number | null, reps: number | null) {
-  // If duration is set and weight+reps are not, treat as timed
-  return val !== null && weight === null && reps === null;
-}
 
 export default async function WorkoutDetailPage({ params }: Props) {
   const { id } = await params;
@@ -52,6 +46,19 @@ export default async function WorkoutDetailPage({ params }: Props) {
           </p>
         </div>
       </div>
+
+      {workout.notes && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-4">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">
+              Warm-up / session notes
+            </p>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+              {workout.notes}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-3">
@@ -91,89 +98,9 @@ export default async function WorkoutDetailPage({ params }: Props) {
       </div>
 
       {/* Exercise breakdown */}
-      {workout.exercises.map((ex) => {
-        const exCompleted = ex.sets.filter((s) => s.completed).length;
-        return (
-          <Card key={ex.id}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-base">{ex.name}</CardTitle>
-                <Badge
-                  variant={exCompleted === ex.sets.length ? "default" : "secondary"}
-                  className="shrink-0 text-xs"
-                >
-                  {exCompleted}/{ex.sets.length}
-                </Badge>
-              </div>
-              {ex.notes && (
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  {ex.notes}
-                </p>
-              )}
-            </CardHeader>
-
-            <CardContent>
-              {/* Column headers */}
-              <div className="grid grid-cols-[2rem_1fr_1fr_2rem] gap-2 text-xs font-medium text-muted-foreground mb-2">
-                <span className="text-center">Set</span>
-                <span className="text-center"><UnitLabel /></span>
-                <span className="text-center">Reps</span>
-                <span />
-              </div>
-
-              <div className="space-y-1.5">
-                {ex.sets.map((s) => {
-                  const timed = isTimed(s.duration, s.weight, s.reps);
-
-                  return (
-                    <div
-                      key={s.id}
-                      className={cn(
-                        "grid grid-cols-[2rem_1fr_1fr_2rem] gap-2 items-center rounded-lg px-1 py-1.5",
-                        s.completed ? "bg-primary/10" : "opacity-50"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "text-center text-sm font-bold tabular-nums",
-                          s.completed ? "text-primary" : "text-muted-foreground"
-                        )}
-                      >
-                        {s.setNumber}
-                      </span>
-
-                      {timed ? (
-                        <>
-                          <span className="col-span-2 text-center text-sm font-medium text-foreground">
-                            {s.duration}s
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-center text-sm font-medium text-foreground tabular-nums">
-                            <WeightCell kg={s.weight} />
-                          </span>
-                          <span className="text-center text-sm font-medium text-foreground tabular-nums">
-                            {s.reps ?? "—"}
-                          </span>
-                        </>
-                      )}
-
-                      <div className="flex justify-center">
-                        {s.completed ? (
-                          <CheckCircle2 className="h-5 w-5 text-primary" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-muted-foreground" />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+      {workout.exercises.map((exercise) => (
+        <HistoryExerciseCard key={exercise.id} exercise={exercise} />
+      ))}
     </div>
   );
 }

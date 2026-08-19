@@ -4,10 +4,18 @@ import { ExerciseCombobox } from "@/components/exercise-combobox";
 import { ExerciseGuideModal } from "@/components/exercise-guide-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   addExerciseToWorkout,
   cancelWorkout,
+  deleteExerciseFromWorkout,
   getSwapSuggestions,
   getWeightRecommendation,
   saveWorkout,
@@ -16,7 +24,7 @@ import {
 } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 import { haptic } from "ios-haptics";
-import { ArrowLeftRight, CheckCircle2, Circle, Info, Loader2, MessageSquare, Plus, Save, Sparkles, Timer, X } from "lucide-react";
+import { ArrowLeftRight, CheckCircle2, Circle, Info, Loader2, MessageSquare, Plus, Save, Sparkles, Timer, Trash2, X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -45,6 +53,7 @@ type TargetMap = Record<
 
 type Props = {
   workoutId: string;
+  workoutNotes: string | null;
   exercises: ExerciseData[];
   targets: TargetMap;
   exerciseLibrary: string[];
@@ -70,7 +79,7 @@ function emptyLocalSet(): LocalSet {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, targets, exerciseLibrary, gifUrls }: Props) {
+export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initialExercises, targets, exerciseLibrary, gifUrls }: Props) {
   const [exercises, setExercises] = useState<ExerciseData[]>(initialExercises);
 
   const storageKey = `workout-draft-${workoutId}`;
@@ -108,6 +117,13 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   const [notesOpen, setNotesOpen] = useState<Record<string, boolean>>(
     () => Object.fromEntries(initialExercises.map((ex) => [ex.id, !!ex.notes]))
   );
+  const [sessionNotes, setSessionNotes] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) return JSON.parse(saved).sessionNotes ?? workoutNotes ?? "";
+    } catch {}
+    return workoutNotes ?? "";
+  });
 
   // Add-exercise form
   const [showAddForm, setShowAddForm] = useState(false);
@@ -129,6 +145,11 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   const [swapSuggestions, setSwapSuggestions] = useState<string[]>([]);
   const [swapSuggestionsError, setSwapSuggestionsError] = useState<string | null>(null);
   const [swapSuggestionsLoading, setSwapSuggestionsLoading] = useState(false);
+
+  // Exercise deletion
+  const [deleteTarget, setDeleteTarget] = useState<ExerciseData | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletePending, startDelete] = useTransition();
 
   const unitLabel = "lb";
 
@@ -184,9 +205,12 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   // ── Persist draft to localStorage so background/foreground doesn't lose data
   useEffect(() => {
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ localData, notes }));
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({ localData, notes, sessionNotes })
+      );
     } catch {}
-  }, [localData, notes, storageKey]);
+  }, [localData, notes, sessionNotes, storageKey]);
 
   // ── Derived stats ──────────────────────────────────────────────────────────
   const totalSets = exercises.reduce((n, ex) => n + ex.sets.length, 0);
@@ -267,6 +291,40 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
     });
   }
 
+  // ── Delete exercise ────────────────────────────────────────────────────────
+  function handleDeleteExercise() {
+    if (!deleteTarget) return;
+    const exerciseId = deleteTarget.id;
+    setDeleteError(null);
+
+    startDelete(async () => {
+      const result = await deleteExerciseFromWorkout(workoutId, exerciseId);
+      if (result.error) {
+        setDeleteError(result.error);
+        return;
+      }
+
+      setExercises((prev) => prev.filter((ex) => ex.id !== exerciseId));
+      setLocalData((prev) => {
+        const { [exerciseId]: _removed, ...rest } = prev;
+        return rest;
+      });
+      setNotes((prev) => {
+        const { [exerciseId]: _removed, ...rest } = prev;
+        return rest;
+      });
+      setNotesOpen((prev) => {
+        const { [exerciseId]: _removed, ...rest } = prev;
+        return rest;
+      });
+      setAiTips((prev) => {
+        const { [exerciseId]: _removed, ...rest } = prev;
+        return rest;
+      });
+      setDeleteTarget(null);
+    });
+  }
+
   // ── Save ───────────────────────────────────────────────────────────────────
   function handleSave() {
     setSaveError(null);
@@ -285,7 +343,7 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
       }),
     }));
     startSave(async () => {
-      const result = await saveWorkout(workoutId, payload);
+      const result = await saveWorkout(workoutId, payload, sessionNotes);
       if (result?.error) {
         setSaveError(result.error);
         return;
@@ -316,6 +374,27 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4">
+      {/* Warm-up / general session notes */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="space-y-2 p-4">
+          <label
+            htmlFor="session-notes"
+            className="flex items-center gap-1.5 text-sm font-semibold text-foreground"
+          >
+            <MessageSquare className="h-4 w-4 text-primary" />
+            Warm-up / session notes
+          </label>
+          <textarea
+            id="session-notes"
+            rows={3}
+            value={sessionNotes}
+            onChange={(event) => setSessionNotes(event.target.value)}
+            placeholder="Warm-up plan, how you feel, or reminders for this session…"
+            className="w-full resize-none rounded-lg border border-border bg-background/70 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </CardContent>
+      </Card>
+
       {/* Progress bar */}
       <div className="space-y-1.5">
         <div className="flex justify-between text-sm">
@@ -383,6 +462,16 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
                     aria-label={`How to do ${ex.name}`}
                   >
                     <Info className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDeleteError(null);
+                      setDeleteTarget(ex);
+                    }}
+                    className="p-1 rounded-md text-muted-foreground hover:text-destructive transition-colors"
+                    aria-label={`Delete ${ex.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -565,6 +654,47 @@ export function ActiveWorkoutClient({ workoutId, exercises: initialExercises, ta
           onClose={() => setGuideExercise(null)}
         />
       )}
+
+      {/* ── Delete exercise confirmation ────────────────────────────────── */}
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && !deletePending && setDeleteTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {deleteTarget?.name}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This exercise and all of its entered sets will be removed from the workout.
+          </p>
+          {deleteError && (
+            <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {deleteError}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deletePending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteExercise}
+              disabled={deletePending}
+            >
+              {deletePending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              {deletePending ? "Deleting…" : "Delete exercise"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Swap exercise modal ───────────────────────────────────────────── */}
       {swapTarget && (
