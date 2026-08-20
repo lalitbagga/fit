@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, TrendingUp } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getAllWorkouts } from "@/lib/actions";
-import { formatDate, toLocalDateStr } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { DeleteWorkoutButton } from "@/components/delete-workout-button";
+import { ExportDataButton } from "@/components/export-data-button";
 
 export const dynamic = "force-dynamic";
 
@@ -50,12 +51,13 @@ export default async function HistoryPage() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-black text-foreground">Workout History</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {workouts.length} session{workouts.length !== 1 ? "s" : ""} logged
           </p>
         </div>
+        <ExportDataButton disabled={workouts.length === 0} />
       </div>
 
       {workouts.length === 0 && (
