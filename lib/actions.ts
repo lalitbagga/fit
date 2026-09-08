@@ -159,7 +159,10 @@ export async function saveWorkout(
 // ─── Delete in-progress workout ──────────────────────────────────────────────
 
 export async function cancelWorkout(workoutId: string) {
-  await prisma.workout.delete({ where: { id: workoutId } });
+  const userId = await getCurrentUserId();
+  await prisma.workout.delete({
+    where: { id: workoutId, userId, completedAt: null },
+  });
   revalidatePath("/");
   redirect("/");
 }

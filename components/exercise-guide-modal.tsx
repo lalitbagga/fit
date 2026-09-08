@@ -1,7 +1,10 @@
 "use client";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ExternalLink, Search } from "lucide-react";
 import Image from "next/image";
+import { useState } from "react";
 
 type Props = {
   name: string;
@@ -11,34 +14,62 @@ type Props = {
 };
 
 export function ExerciseGuideModal({ name, gifUrl, open, onClose }: Props) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const googleImagesUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(
+    `${name} exercise proper form`
+  )}`;
+  const showImage = Boolean(gifUrl) && !imageFailed;
+
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!value) {
+          setImageFailed(false);
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-base">{name}</DialogTitle>
         </DialogHeader>
 
-        {gifUrl ? (
+        {showImage ? (
           <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-muted">
             <Image
-              src={gifUrl}
+              src={gifUrl!}
               alt={name}
               fill
               className="object-cover"
               unoptimized
+              onError={() => setImageFailed(true)}
             />
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center aspect-square rounded-xl bg-muted text-center gap-2 px-4">
-            <span className="text-4xl">🏋️</span>
-            <p className="text-sm text-muted-foreground">No image available for this exercise.</p>
+          <div className="flex min-h-64 flex-col items-center justify-center rounded-xl bg-muted px-5 text-center">
+            <Search className="mb-3 h-9 w-9 text-primary" />
+            <p className="text-sm font-medium text-foreground">
+              {imageFailed ? "This exercise image could not be loaded." : "No image is available for this exercise."}
+            </p>
+            <p className="mb-4 mt-1 text-xs text-muted-foreground">
+              Search Google Images for demonstrations of proper form.
+            </p>
+            <Button asChild className="gap-2">
+              <a href={googleImagesUrl} target="_blank" rel="noopener noreferrer">
+                View Google results
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </Button>
           </div>
         )}
 
-        <p className="text-xs text-muted-foreground text-center -mt-1">
-          Images from{" "}
-          <span className="underline underline-offset-2">free-exercise-db</span>
-        </p>
+        {showImage && (
+          <p className="text-xs text-muted-foreground text-center -mt-1">
+            Images from{" "}
+            <span className="underline underline-offset-2">free-exercise-db</span>
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -133,6 +133,7 @@ export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initia
 
   const [savePending, startSave] = useTransition();
   const [cancelPending, startCancel] = useTransition();
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Exercise guide modal
@@ -790,7 +791,7 @@ export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initia
           variant="outline"
           size="lg"
           className="flex-1 gap-2"
-          onClick={handleCancel}
+          onClick={() => setCancelConfirmOpen(true)}
           disabled={savePending || cancelPending}
         >
           {cancelPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
@@ -807,6 +808,42 @@ export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initia
           {progress === 100 ? "Finish Workout 🎉" : "Save & Finish"}
         </Button>
       </div>
+
+      {/* ── Discard workout confirmation ────────────────────────────────── */}
+      <Dialog
+        open={cancelConfirmOpen}
+        onOpenChange={(open) => !cancelPending && setCancelConfirmOpen(open)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you sure you want to discard this workout?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            All entered sets, exercise notes, and session notes will be permanently deleted.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCancelConfirmOpen(false)}
+              disabled={cancelPending}
+            >
+              No, keep workout
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancel}
+              disabled={cancelPending}
+            >
+              {cancelPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              {cancelPending ? "Discarding…" : "Yes, discard"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Rest timer (floating pill) ────────────────────────────────────── */}
       {restSeconds !== null && (

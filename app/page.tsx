@@ -7,12 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { StreakCard } from "@/components/streak-card";
 import { TemplateSelector } from "@/components/template-selector";
 import { AiWorkoutGenerator } from "@/components/ai-workout-generator";
+import { DiscardWorkoutButton } from "@/components/discard-workout-button";
 import {
   getStreak,
   getRecentWorkouts,
   getTemplates,
   getInProgressWorkout,
-  cancelWorkout,
 } from "@/lib/actions";
 import { formatDate } from "@/lib/utils";
 
@@ -88,16 +88,7 @@ export default async function Dashboard() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <form
-                action={async () => {
-                  "use server";
-                  await cancelWorkout(inProgress.id);
-                }}
-              >
-                <Button type="submit" size="sm" variant="ghost" className="text-muted-foreground hover:text-destructive">
-                  Discard
-                </Button>
-              </form>
+              <DiscardWorkoutButton workoutId={inProgress.id} />
               <Button size="sm" asChild>
                 <Link href={`/workout/${inProgress.id}`}>Resume</Link>
               </Button>
