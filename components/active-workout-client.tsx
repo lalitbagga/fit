@@ -77,6 +77,16 @@ function emptyLocalSet(): LocalSet {
   return { weight: "", reps: "", duration: "", completed: false };
 }
 
+function openGoogleExerciseSearch(name: string): boolean {
+  const url = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(
+    `${name} exercise proper form`
+  )}`;
+  const browserWindow = window.open(url, "_blank");
+  if (!browserWindow) return false;
+  browserWindow.opener = null;
+  return true;
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initialExercises, targets, exerciseLibrary, gifUrls }: Props) {
@@ -458,7 +468,11 @@ export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initia
                     }
                   </button>
                   <button
-                    onClick={() => setGuideExercise({ name: ex.name, gifUrl: gifUrls[ex.name] ?? null })}
+                    onClick={() => {
+                      const gifUrl = gifUrls[ex.name] ?? null;
+                      if (!gifUrl && openGoogleExerciseSearch(ex.name)) return;
+                      setGuideExercise({ name: ex.name, gifUrl });
+                    }}
                     className="p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
                     aria-label={`How to do ${ex.name}`}
                   >
@@ -653,6 +667,7 @@ export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initia
           gifUrl={guideExercise.gifUrl}
           open={true}
           onClose={() => setGuideExercise(null)}
+          onImageUnavailable={() => openGoogleExerciseSearch(guideExercise.name)}
         />
       )}
 

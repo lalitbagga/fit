@@ -11,9 +11,16 @@ type Props = {
   gifUrl: string | null;
   open: boolean;
   onClose: () => void;
+  onImageUnavailable: () => boolean;
 };
 
-export function ExerciseGuideModal({ name, gifUrl, open, onClose }: Props) {
+export function ExerciseGuideModal({
+  name,
+  gifUrl,
+  open,
+  onClose,
+  onImageUnavailable,
+}: Props) {
   const [imageFailed, setImageFailed] = useState(false);
   const googleImagesUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(
     `${name} exercise proper form`
@@ -43,7 +50,14 @@ export function ExerciseGuideModal({ name, gifUrl, open, onClose }: Props) {
               fill
               className="object-cover"
               unoptimized
-              onError={() => setImageFailed(true)}
+              onError={() => {
+                if (onImageUnavailable()) {
+                  setImageFailed(false);
+                  onClose();
+                } else {
+                  setImageFailed(true);
+                }
+              }}
             />
           </div>
         ) : (
