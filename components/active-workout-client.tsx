@@ -25,7 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { haptic } from "ios-haptics";
 import { ArrowLeftRight, CheckCircle2, Circle, Info, Loader2, MessageSquare, Plus, Save, Sparkles, Timer, Trash2, X } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -156,6 +156,8 @@ export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initia
   const [swapSuggestions, setSwapSuggestions] = useState<string[]>([]);
   const [swapSuggestionsError, setSwapSuggestionsError] = useState<string | null>(null);
   const [swapSuggestionsLoading, setSwapSuggestionsLoading] = useState(false);
+  const [swapViewport, setSwapViewport] = useState<{ height: number; bottom: number } | null>(null);
+  const swapSearchRef = useRef<HTMLDivElement>(null);
 
   // Exercise deletion
   const [deleteTarget, setDeleteTarget] = useState<ExerciseData | null>(null);
@@ -212,6 +214,42 @@ export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initia
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [restEndsAt]);
+
+  // Keep the swap sheet inside the visible area when a mobile keyboard opens.
+  useEffect(() => {
+    if (!swapTarget) {
+      setSwapViewport(null);
+      return;
+    }
+
+    const viewport = window.visualViewport;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function updateViewport() {
+      if (!viewport) {
+        setSwapViewport({ height: window.innerHeight, bottom: 0 });
+        return;
+      }
+      setSwapViewport({
+        height: Math.round(viewport.height),
+        bottom: Math.max(
+          0,
+          Math.round(window.innerHeight - viewport.height - viewport.offsetTop)
+        ),
+      });
+    }
+
+    updateViewport();
+    viewport?.addEventListener("resize", updateViewport);
+    viewport?.addEventListener("scroll", updateViewport);
+
+    return () => {
+      viewport?.removeEventListener("resize", updateViewport);
+      viewport?.removeEventListener("scroll", updateViewport);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [swapTarget]);
 
   // ── Persist draft to localStorage so background/foreground doesn't lose data
   useEffect(() => {
@@ -300,6 +338,22 @@ export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initia
       setSwapTarget(null);
       setSwapName("");
     });
+  }
+
+  async function handleGetSwapSuggestions() {
+    if (!swapTarget || swapSuggestionsLoading) return;
+    setSwapSuggestionsLoading(true);
+    setSwapSuggestionsError(null);
+
+    try {
+      const { suggestions, error } = await getSwapSuggestions(swapTarget.name);
+      setSwapSuggestions(suggestions);
+      setSwapSuggestionsError(error ?? null);
+    } catch {
+      setSwapSuggestionsError("Could not load AI suggestions. Please try again.");
+    } finally {
+      setSwapSuggestionsLoading(false);
+    }
   }
 
   // ── Delete exercise ────────────────────────────────────────────────────────
@@ -444,12 +498,7 @@ export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initia
                       setSwapName("");
                       setSwapSuggestions([]);
                       setSwapSuggestionsError(null);
-                      setSwapSuggestionsLoading(true);
-                      getSwapSuggestions(ex.name).then(({ suggestions, error }) => {
-                        setSwapSuggestions(suggestions);
-                        setSwapSuggestionsError(error ?? null);
-                        setSwapSuggestionsLoading(false);
-                      }).catch(() => setSwapSuggestionsLoading(false));
+                      setSwapSuggestionsLoading(false);
                     }}
                     className="p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
                     aria-label={`Swap ${ex.name}`}
@@ -719,7 +768,13 @@ export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initia
             className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
             onClick={() => !swapPending && setSwapTarget(null)}
           />
-          <div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-card border-t border-border shadow-2xl px-5 pb-8 pt-4 flex flex-col gap-4">
+          <div
+            className="fixed left-0 right-0 z-50 flex flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-2xl border-t border-border bg-card px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-4 shadow-2xl"
+            style={{
+              bottom: swapViewport?.bottom ?? 0,
+              maxHeight: swapViewport ? `${swapViewport.height}px` : "90dvh",
+            }}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-bold text-foreground flex items-center gap-2">
@@ -738,12 +793,44 @@ export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initia
                 <X className="h-4 w-4" />
               </button>
             </div>
+            <p className="text-xs text-muted-foreground">Search manually:</p>
+            <div
+              ref={swapSearchRef}
+              onFocusCapture={() => {
+                window.setTimeout(() => {
+                  swapSearchRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 250);
+              }}
+            >
+              <ExerciseCombobox
+                library={exerciseLibrary.filter((n) => !exercises.some((ex) => ex.name === n))}
+                value={swapName}
+                onChange={setSwapName}
+              />
+            </div>
             {/* AI suggestions */}
             <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                AI suggestions
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  AI suggestions
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={handleGetSwapSuggestions}
+                  disabled={swapSuggestionsLoading}
+                >
+                  {swapSuggestionsLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  {swapSuggestions.length > 0 ? "Refresh suggestions" : "Get AI suggestions"}
+                </Button>
+              </div>
               {swapSuggestionsLoading ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -768,14 +855,12 @@ export function ActiveWorkoutClient({ workoutId, workoutNotes, exercises: initia
                     </button>
                   ))}
                 </div>
+              ) : swapSuggestions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  AI is only called when you press the button.
+                </p>
               ) : null}
             </div>
-            <p className="text-xs text-muted-foreground -mt-2">Or search manually:</p>
-            <ExerciseCombobox
-              library={exerciseLibrary.filter((n) => !exercises.some((ex) => ex.name === n))}
-              value={swapName}
-              onChange={setSwapName}
-            />
             <Button
               size="lg"
               className="w-full gap-2 font-bold"
