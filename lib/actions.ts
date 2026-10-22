@@ -224,7 +224,7 @@ export async function getRecentWorkouts() {
     take: 5,
     include: {
       template: { select: { name: true, emoji: true } },
-      exercises: { select: { name: true }, take: 3 },
+      _count: { select: { exercises: true } },
     },
   });
 }

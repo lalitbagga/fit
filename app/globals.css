@@ -3,32 +3,39 @@
 @tailwind utilities;
 
 @layer base {
-  /* ── Dark theme (always on) ──────────────────────────────── */
+  /* ── iOS dark system palette (always on) ─────────────────────
+     Values follow Apple's dark-mode system colours so the app
+     feels native next to Fitness/Health on the home screen. */
   :root {
-    --background: 222 20% 8%;
-    --foreground: 210 20% 95%;
+    --background: 0 0% 0%;            /* systemBackground        #000000 */
+    --foreground: 0 0% 100%;          /* label                   #FFFFFF */
 
-    --card: 222 18% 11%;
-    --card-foreground: 210 20% 95%;
+    --card: 240 3% 11%;               /* secondarySystemGrouped  #1C1C1E */
+    --card-foreground: 0 0% 100%;
 
-    --primary: 258 90% 65%;
+    --primary: 211 100% 52%;          /* systemBlue              #0A84FF */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 18% 16%;
-    --secondary-foreground: 210 20% 90%;
+    --secondary: 240 2% 18%;          /* tertiarySystemGrouped   #2C2C2E */
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 222 18% 16%;
-    --muted-foreground: 220 10% 55%;
+    --muted: 240 2% 18%;
+    --muted-foreground: 240 4% 61%;   /* secondaryLabel          #98989F */
 
-    --accent: 222 18% 20%;
-    --accent-foreground: 210 20% 95%;
+    --tertiary-foreground: 240 2% 37%;/* tertiaryLabel ≈         #5C5C61 */
 
-    --destructive: 0 72% 51%;
+    --accent: 240 2% 23%;             /* systemGray5             #3A3A3C */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 3 100% 61%;        /* systemRed               #FF453A */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 222 18% 18%;
-    --input: 222 18% 18%;
-    --ring: 258 90% 65%;
+    --success: 135 64% 50%;           /* systemGreen             #30D158 */
+    --warning: 36 100% 52%;           /* systemOrange            #FF9F0A */
+
+    --border: 240 2% 22%;             /* separator (opaque)      #38383A */
+    --input: 240 2% 18%;
+    --ring: 211 100% 52%;
 
     --radius: 0.75rem;
   }
@@ -39,16 +46,18 @@
 
   html {
     color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 17px;
+    line-height: 22px;
+    letter-spacing: -0.41px;
     /* Prevent iOS tap highlight */
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Larger tap targets on mobile */
   input[type="number"] {
     -moz-appearance: textfield;
   }
@@ -57,10 +66,61 @@
     -webkit-appearance: none;
     margin: 0;
   }
+
+  button {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+@layer components {
+  /* Blurred translucent bar material (nav bars, floating controls) */
+  .material-bar {
+    background-color: rgb(22 22 24 / 0.72);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
+
+  /* Inset grouped list: rows separated by a hairline that starts at
+     the text, not the icon — like Settings. */
+  .ios-list {
+    @apply overflow-hidden rounded-xl bg-card;
+  }
+  .ios-row {
+    @apply relative flex min-h-[44px] w-full items-center gap-3 pl-4 text-left;
+  }
+  .ios-row-content {
+    @apply flex min-h-[44px] min-w-0 flex-1 items-center gap-3 py-2.5 pr-4;
+  }
+  .ios-row + .ios-row .ios-row-content {
+    box-shadow: inset 0 0.5px 0 hsl(var(--border));
+  }
+  button.ios-row:active,
+  a.ios-row:active {
+    @apply bg-accent;
+  }
+
+  /* Section header / footer text around a grouped list */
+  .ios-section-header {
+    @apply px-4 pb-1.5 text-footnote uppercase text-muted-foreground;
+  }
+  .ios-section-footer {
+    @apply px-4 pt-1.5 text-footnote text-muted-foreground;
+  }
 }
 
 @layer utilities {
   .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 1rem);
+    padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-sheet-up,
+    .animate-fade-in {
+      animation: none !important;
+    }
   }
 }

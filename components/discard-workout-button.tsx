@@ -1,16 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, Trash2 } from "lucide-react";
 import { cancelWorkout } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ActionSheet } from "@/components/ui/action-sheet";
 
 export function DiscardWorkoutButton({ workoutId }: { workoutId: string }) {
   const [open, setOpen] = useState(false);
@@ -27,33 +20,28 @@ export function DiscardWorkoutButton({ workoutId }: { workoutId: string }) {
     <>
       <Button
         type="button"
-        size="sm"
-        variant="ghost"
-        className="text-muted-foreground hover:text-destructive"
+        size="lg"
+        variant="secondary"
+        className="px-5 text-destructive"
         onClick={() => setOpen(true)}
       >
         Discard
       </Button>
 
-      <Dialog open={open} onOpenChange={(value) => !pending && setOpen(value)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Are you sure you want to discard this workout?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            All entered sets, exercise notes, and session notes will be permanently deleted.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>
-              No, keep workout
-            </Button>
-            <Button variant="destructive" onClick={handleDiscard} disabled={pending}>
-              {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              {pending ? "Discarding…" : "Yes, discard"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ActionSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Discard this workout?"
+        message="All entered sets and notes will be permanently deleted."
+        actions={[
+          {
+            label: pending ? "Discarding…" : "Discard Workout",
+            destructive: true,
+            pending,
+            onSelect: handleDiscard,
+          },
+        ]}
+      />
     </>
   );
 }

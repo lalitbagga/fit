@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, Sparkles, X } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetButton } from "@/components/ui/sheet";
 import { generateAiWorkout } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
@@ -32,132 +33,67 @@ export function AiWorkoutGenerator() {
     });
   }
 
+  const choice = (selected: boolean) =>
+    cn(
+      "flex min-h-[44px] items-center justify-center rounded-[10px] px-2 text-subhead transition-colors",
+      selected ? "bg-primary text-primary-foreground font-semibold" : "bg-secondary text-foreground active:bg-accent"
+    );
+
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center justify-center gap-2 w-full rounded-xl border border-primary/30 bg-primary/5 py-3 text-sm font-semibold text-primary hover:bg-primary/10 transition-colors active:scale-[0.98]"
+      <Button variant="tinted" size="lg" className="w-full" onClick={() => setOpen(true)}>
+        <Sparkles />
+        Generate with AI
+      </Button>
+
+      <Sheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="AI Workout"
+        dismissible={!pending}
+        leading={<SheetButton onClick={() => setOpen(false)} disabled={pending}>Cancel</SheetButton>}
       >
-        <Sparkles className="h-4 w-4" />
-        Generate AI Workout
-      </button>
+        <div className="flex flex-col gap-6 pt-2">
+          <p className="px-1 text-subhead text-muted-foreground">
+            Built from your recent history and how you feel today.
+          </p>
 
-      {open && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
-            onClick={() => !pending && setOpen(false)}
-          />
-
-          {/* Bottom sheet */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-2xl bg-card border-t border-border shadow-2xl">
-            {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-            </div>
-
-            <div className="px-5 pb-8 flex flex-col gap-5">
-              {/* Header */}
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    AI Workout
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Personalised based on your history &amp; how you feel
-                  </p>
-                </div>
-                <button
-                  onClick={() => setOpen(false)}
-                  disabled={pending}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <X className="h-4 w-4" />
+          <section>
+            <p className="ios-section-header">Energy</p>
+            <div className="grid grid-cols-3 gap-2">
+              {(["low", "medium", "high"] as Energy[]).map((e) => (
+                <button key={e} type="button" onClick={() => setEnergy(e)} disabled={pending} className={choice(energy === e)}>
+                  {e === "low" ? "😴 Low" : e === "medium" ? "😊 Medium" : "🔥 High"}
                 </button>
-              </div>
-
-              {/* Energy level */}
-              <div className="flex flex-col gap-2">
-                <p className="text-sm font-semibold text-foreground">
-                  How&apos;s your energy today?
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["low", "medium", "high"] as Energy[]).map((e) => (
-                    <button
-                      key={e}
-                      onClick={() => setEnergy(e)}
-                      disabled={pending}
-                      className={cn(
-                        "rounded-xl border py-3 text-sm font-medium transition-colors",
-                        energy === e
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                      )}
-                    >
-                      {e === "low" ? "😴 Low" : e === "medium" ? "😊 Medium" : "🔥 High"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Focus area */}
-              <div className="flex flex-col gap-2">
-                <p className="text-sm font-semibold text-foreground">
-                  What&apos;s the focus?
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  {FOCUS_OPTIONS.map((f) => (
-                    <button
-                      key={f.value}
-                      onClick={() => setFocus(f.value)}
-                      disabled={pending}
-                      className={cn(
-                        "rounded-xl border py-3 text-sm font-medium transition-colors",
-                        focus === f.value
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                      )}
-                    >
-                      {f.emoji} {f.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Generate button */}
-              <Button
-                size="lg"
-                className="w-full gap-2 font-bold"
-                onClick={handleGenerate}
-                disabled={pending}
-              >
-                {pending ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Building your workout…
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-5 w-5" />
-                    Generate Workout
-                  </>
-                )}
-              </Button>
-
-              {pending && (
-                <p className="text-center text-xs text-muted-foreground -mt-2">
-                  Analysing your history and building a personalised session…
-                </p>
-              )}
-              {error && (
-                <p className="text-center text-xs text-red-400 -mt-2">{error}</p>
-              )}
+              ))}
             </div>
+          </section>
+
+          <section>
+            <p className="ios-section-header">Focus</p>
+            <div className="grid grid-cols-3 gap-2">
+              {FOCUS_OPTIONS.map((f) => (
+                <button key={f.value} type="button" onClick={() => setFocus(f.value)} disabled={pending} className={choice(focus === f.value)}>
+                  {f.emoji} {f.label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <div className="flex flex-col gap-2">
+            <Button size="lg" className="w-full" onClick={handleGenerate} disabled={pending}>
+              {pending ? <Loader2 className="animate-spin" /> : <Sparkles />}
+              {pending ? "Building Your Workout…" : "Generate Workout"}
+            </Button>
+            {pending && (
+              <p className="text-center text-footnote text-muted-foreground">
+                Analysing your history and building a session…
+              </p>
+            )}
+            {error && <p className="text-center text-footnote text-destructive">{error}</p>}
           </div>
-        </>
-      )}
+        </div>
+      </Sheet>
     </>
   );
 }

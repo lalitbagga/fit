@@ -1,8 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "FIT — GoodLife Tracker",
@@ -20,7 +17,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#0f1117",
+  // Draw edge-to-edge and expose the notch / home-indicator insets via env()
+  viewportFit: "cover",
+  themeColor: "#000000",
 };
 
 export default function RootLayout({
@@ -30,10 +29,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={inter.className}>
-        <div className="min-h-screen bg-background">
-          {/* Mobile-first max-width container */}
-          <main className="mx-auto max-w-lg px-4 pb-8">{children}</main>
+      <body>
+        <div className="min-h-[100dvh] bg-background">
+          {/* Mobile-first column; top inset keeps content clear of the status bar */}
+          <main className="mx-auto max-w-lg px-4 pt-[env(safe-area-inset-top)] pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
+            {children}
+          </main>
         </div>
       </body>
     </html>

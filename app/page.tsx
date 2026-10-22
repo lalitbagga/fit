@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { Activity, ChevronRight, Clock, Dumbbell, LogOut, TrendingUp } from "lucide-react";
+import { ChevronRight, History, LineChart } from "lucide-react";
 import { auth, signOut } from "@/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { StreakCard } from "@/components/streak-card";
 import { TemplateSelector } from "@/components/template-selector";
 import { AiWorkoutGenerator } from "@/components/ai-workout-generator";
@@ -18,6 +16,15 @@ import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+function todayLabel() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Toronto",
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date());
+}
+
 export default async function Dashboard() {
   const session = await auth();
   const user = session?.user;
@@ -31,176 +38,147 @@ export default async function Dashboard() {
   ]);
 
   return (
-    <div className="flex flex-col gap-5 pt-6">
-      {/* ── Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-foreground">
-            Hey {firstName} 👋
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            GoodLife · Body Recomp
+    <div className="flex flex-col pt-3">
+      {/* ── Large title header ─────────────────────── */}
+      <header className="flex items-end justify-between gap-3 pb-4">
+        <div className="min-w-0">
+          <p className="text-footnote font-semibold uppercase text-muted-foreground">
+            {todayLabel()}
           </p>
+          <h1 className="truncate text-large-title text-foreground">Hi, {firstName}</h1>
         </div>
-        <div className="flex items-center gap-2">
-          {user?.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={user.image}
-              alt={user.name ?? ""}
-              className="h-10 w-10 rounded-full border border-border"
-            />
-          ) : (
-            <div className="h-10 w-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
-              <span className="text-lg">🏋️</span>
-            </div>
-          )}
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/login" });
-            }}
-          >
-            <button
-              type="submit"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="Sign out"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </form>
-        </div>
-      </div>
+        {user?.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={user.image}
+            alt=""
+            className="mb-1 h-9 w-9 shrink-0 rounded-full"
+          />
+        ) : (
+          <div className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-subhead font-semibold text-muted-foreground">
+            {firstName.charAt(0).toUpperCase()}
+          </div>
+        )}
+      </header>
 
-      {/* ── Task 2: Attendance Streak ────────────────── */}
-      <StreakCard streak={streak} />
-
-      {/* ── Resume in-progress workout ───────────────── */}
-      {inProgress && (
-        <Card className="border-primary/40 bg-primary/5">
-          <CardContent className="flex items-center justify-between pt-4 pb-4">
-            <div>
-              <p className="text-xs font-medium text-primary uppercase tracking-wider">
-                Workout in progress
-              </p>
-              <p className="text-sm font-semibold text-foreground mt-0.5">
-                {inProgress.template?.emoji} {inProgress.template?.name}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <DiscardWorkoutButton workoutId={inProgress.id} />
-              <Button size="sm" asChild>
+      <div className="flex flex-col gap-3">
+        {/* ── Resume in-progress workout ───────────── */}
+        {inProgress && (
+          <div className="rounded-xl bg-card p-4">
+            <p className="flex items-center gap-1.5 text-subhead font-semibold text-success">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+              </span>
+              In Progress
+            </p>
+            <p className="mt-1 truncate text-headline text-foreground">
+              {inProgress.template?.emoji ?? inProgress.templateEmoji}{" "}
+              {inProgress.template?.name ?? inProgress.templateName ?? "Workout"}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Button asChild size="lg" className="flex-1">
                 <Link href={`/workout/${inProgress.id}`}>Resume</Link>
               </Button>
+              <DiscardWorkoutButton workoutId={inProgress.id} />
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
 
-      {/* ── Task 2: Start New Workout ────────────────── */}
-      <TemplateSelector templates={templates} />
+        <StreakCard streak={streak} />
 
-      {/* ── AI Workout Generator ─────────────────────── */}
-      <AiWorkoutGenerator />
-
-      {/* ── Quick stats ─────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-4 gap-1">
-            <Activity className="h-5 w-5 text-primary mb-1" />
-            <span className="text-2xl font-black tabular-nums">
-              {recentWorkouts.length}
-            </span>
-            <span className="text-xs text-muted-foreground text-center">
-              sessions
-            </span>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-4 gap-1">
-            <Dumbbell className="h-5 w-5 text-primary mb-1" />
-            <span className="text-2xl font-black tabular-nums">4</span>
-            <span className="text-xs text-muted-foreground text-center">
-              templates
-            </span>
-          </CardContent>
-        </Card>
-        <Link href="/progress" className="block">
-          <Card className="h-full hover:border-primary/40 transition-colors">
-            <CardContent className="flex flex-col items-center justify-center py-4 gap-1 h-full">
-              <TrendingUp className="h-5 w-5 text-green-400 mb-1" />
-              <span className="text-2xl font-black tabular-nums text-green-400">
-                📈
-              </span>
-              <span className="text-xs text-muted-foreground text-center">
-                progress
-              </span>
-            </CardContent>
-          </Card>
-        </Link>
+        {/* ── Primary actions ──────────────────────── */}
+        <div className="flex flex-col gap-2 pt-1">
+          <TemplateSelector templates={templates} />
+          <AiWorkoutGenerator />
+        </div>
       </div>
 
-      {/* ── Recent Workouts ──────────────────────────── */}
-      {recentWorkouts.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <Link
-              href="/history"
-              className="flex items-center justify-between group"
-            >
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                Recent Sessions
-              </CardTitle>
-              <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors flex items-center gap-0.5">
-                View all <ChevronRight className="h-3.5 w-3.5" />
-              </span>
+      {/* ── Recent workouts ────────────────────────── */}
+      <section className="pt-7">
+        <div className="flex items-baseline justify-between px-1 pb-2">
+          <h2 className="text-title3 font-semibold text-foreground">Recent Workouts</h2>
+          {recentWorkouts.length > 0 && (
+            <Link href="/history" className="text-body text-primary active:opacity-50">
+              Show All
             </Link>
-          </CardHeader>
-          <CardContent className="space-y-1 pt-0">
+          )}
+        </div>
+
+        {recentWorkouts.length > 0 ? (
+          <div className="ios-list">
             {recentWorkouts.map((w) => (
-              <Link
-                key={w.id}
-                href={`/history/${w.id}`}
-                className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/60 transition-colors active:bg-accent -mx-2"
-              >
-                <span className="text-2xl shrink-0">
+              <Link key={w.id} href={`/history/${w.id}`} className="ios-row">
+                <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[7px] bg-secondary text-[18px]">
                   {w.template?.emoji ?? w.templateEmoji ?? "💪"}
                 </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">
-                    {w.template?.name ?? w.templateName ?? "Custom Workout"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {w.completedAt ? formatDate(new Date(w.completedAt)) : "—"}
-                  </p>
-                </div>
-                <Badge variant="secondary" className="shrink-0 text-xs">
-                  {w.exercises.length} ex
-                </Badge>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="ios-row-content">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-body text-foreground">
+                      {w.template?.name ?? w.templateName ?? "Custom Workout"}
+                    </span>
+                    <span className="block text-subhead text-muted-foreground">
+                      {w.completedAt ? formatDate(new Date(w.completedAt)) : "—"} ·{" "}
+                      {w._count.exercises} exercises
+                    </span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-tertiary" />
+                </span>
               </Link>
             ))}
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        ) : (
+          <div className="rounded-xl bg-card px-6 py-8 text-center">
+            <p className="text-headline text-foreground">No Workouts Yet</p>
+            <p className="mt-1 text-subhead text-muted-foreground">
+              Tap Start Workout and pick a plan. Your sessions will show up here.
+            </p>
+          </div>
+        )}
+      </section>
 
-      {/* ── Empty state ──────────────────────────────── */}
-      {recentWorkouts.length === 0 && (
-        <div className="flex flex-col items-center gap-3 py-8 text-center">
-          <span className="text-5xl">🚀</span>
-          <p className="font-semibold text-foreground">
-            Your first session awaits!
-          </p>
-          <p className="text-sm text-muted-foreground max-w-xs">
-            Hit Start New Workout, pick a template, and let&apos;s build that
-            streak. You&apos;ve got this.
-          </p>
+      {/* ── Browse ─────────────────────────────────── */}
+      <section className="pt-7">
+        <div className="ios-list">
+          <Link href="/history" className="ios-row">
+            <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[7px] bg-primary">
+              <History className="h-[18px] w-[18px] text-white" />
+            </span>
+            <span className="ios-row-content">
+              <span className="flex-1 text-body text-foreground">History</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-tertiary" />
+            </span>
+          </Link>
+          <Link href="/progress" className="ios-row">
+            <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[7px] bg-success">
+              <LineChart className="h-[18px] w-[18px] text-white" />
+            </span>
+            <span className="ios-row-content">
+              <span className="flex-1 text-body text-foreground">Progress</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-tertiary" />
+            </span>
+          </Link>
         </div>
-      )}
-      <p className="text-center text-[10px] text-muted-foreground/40 pb-2">
-        v{process.env.NEXT_PUBLIC_APP_VERSION}
-      </p>
+      </section>
+
+      <section className="pt-7">
+        <form
+          className="ios-list"
+          action={async () => {
+            "use server";
+            await signOut({ redirectTo: "/login" });
+          }}
+        >
+          <button type="submit" className="ios-row justify-center pl-0">
+            <span className="ios-row-content justify-center pr-0">
+              <span className="text-body text-destructive">Sign Out</span>
+            </span>
+          </button>
+        </form>
+        <p className="pt-3 text-center text-caption1 text-tertiary">
+          FIT v{process.env.NEXT_PUBLIC_APP_VERSION}
+        </p>
+      </section>
     </div>
   );
 }

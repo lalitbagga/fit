@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Dumbbell, ChevronRight, Loader2, X, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, Loader2, Play, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetButton } from "@/components/ui/sheet";
+import { ActionSheet } from "@/components/ui/action-sheet";
 import { startWorkout, deleteWorkoutTemplate } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 
@@ -21,18 +23,16 @@ const SEEDED_COUNT = 4;
 export function TemplateSelector({ templates }: { templates: Template[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Template | null>(null);
+  const [deletePending, startDelete] = useTransition();
 
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => { document.body.style.overflow = ""; };
-  }, [open]);
+  function close() {
+    setOpen(false);
+    setEditing(false);
+  }
 
   function handleSelect(templateId: string) {
     setSelectedId(templateId);
@@ -41,12 +41,12 @@ export function TemplateSelector({ templates }: { templates: Template[] }) {
     });
   }
 
-  function handleDelete(e: React.MouseEvent, templateId: string) {
-    e.stopPropagation();
-    setDeletingId(templateId);
-    startTransition(async () => {
-      await deleteWorkoutTemplate(templateId);
-      setDeletingId(null);
+  function handleDelete() {
+    if (!confirmDelete) return;
+    const id = confirmDelete.id;
+    startDelete(async () => {
+      await deleteWorkoutTemplate(id);
+      setConfirmDelete(null);
     });
   }
 
@@ -55,164 +55,158 @@ export function TemplateSelector({ templates }: { templates: Template[] }) {
 
   return (
     <>
-      <Button
-        size="xl"
-        className="w-full gap-3 font-bold tracking-wide"
-        onClick={() => setOpen(true)}
-      >
-        <Dumbbell className="h-5 w-5" />
-        Start New Workout
+      <Button size="lg" className="w-full" onClick={() => setOpen(true)}>
+        <Play fill="currentColor" />
+        Start Workout
       </Button>
 
-      {open && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
-            onClick={() => !pending && setOpen(false)}
-          />
-
-          {/* Bottom sheet */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-2xl bg-card border-t border-border shadow-2xl max-h-[88dvh]">
-            {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1 shrink-0">
-              <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
-            </div>
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 shrink-0">
-              <div>
-                <h2 className="text-lg font-bold text-foreground">Choose Your Workout</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Select a template to start tracking
-                </p>
-              </div>
-              <button
-                onClick={() => setOpen(false)}
-                disabled={pending}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Scrollable list */}
-            <div className="overflow-y-auto px-5 pb-8 flex flex-col gap-4">
-
-              {/* Seeded templates */}
-              <TemplateGroup
-                label="GoodLife Plans"
-                templates={seeded}
-                pending={pending}
-                selectedId={selectedId}
-                deletingId={deletingId}
-                onSelect={handleSelect}
-                allowDelete={false}
-                onDelete={handleDelete}
-              />
-
-              {/* User-created templates */}
-              {custom.length > 0 && (
-                <TemplateGroup
-                  label="My Workouts"
-                  templates={custom}
-                  pending={pending}
-                  selectedId={selectedId}
-                  deletingId={deletingId}
-                  onSelect={handleSelect}
-                  allowDelete={true}
-                  onDelete={handleDelete}
+      <Sheet
+        open={open}
+        onClose={close}
+        title="Start Workout"
+        dismissible={!pending}
+        leading={<SheetButton onClick={close} disabled={pending}>Cancel</SheetButton>}
+        trailing={
+          custom.length > 0 ? (
+            <SheetButton onClick={() => setEditing((e) => !e)} disabled={pending} bold={editing}>
+              {editing ? "Done" : "Edit"}
+            </SheetButton>
+          ) : null
+        }
+      >
+        <div className="flex flex-col gap-6 pt-2">
+          <section>
+            <p className="ios-section-header">My Workouts</p>
+            <div className="ios-list">
+              {custom.map((t) => (
+                <TemplateRow
+                  key={t.id}
+                  template={t}
+                  editing={editing}
+                  loading={pending && selectedId === t.id}
+                  disabled={pending}
+                  onSelect={() => handleSelect(t.id)}
+                  onDelete={() => setConfirmDelete(t)}
                 />
-              )}
-
-              {/* Create new */}
+              ))}
               <button
-                onClick={() => { setOpen(false); router.push("/templates/new"); }}
+                type="button"
+                className="ios-row"
                 disabled={pending}
-                className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-3.5 text-sm font-medium text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-50"
+                onClick={() => {
+                  close();
+                  router.push("/templates/new");
+                }}
               >
-                <Plus className="h-4 w-4" />
-                Create New Workout
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center">
+                  <Plus className="h-5 w-5 text-primary" />
+                </span>
+                <span className="ios-row-content">
+                  <span className="text-body text-primary">New Workout</span>
+                </span>
               </button>
             </div>
-          </div>
-        </>
-      )}
+          </section>
+
+          {seeded.length > 0 && (
+            <section>
+              <p className="ios-section-header">GoodLife Plans</p>
+              <div className="ios-list">
+                {seeded.map((t) => (
+                  <TemplateRow
+                    key={t.id}
+                    template={t}
+                    editing={false}
+                    loading={pending && selectedId === t.id}
+                    disabled={pending || editing}
+                    onSelect={() => handleSelect(t.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      </Sheet>
+
+      <ActionSheet
+        open={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
+        title={`Delete “${confirmDelete?.name ?? ""}”?`}
+        message="Past workouts keep their name and all logged sets."
+        actions={[
+          {
+            label: deletePending ? "Deleting…" : "Delete Workout",
+            destructive: true,
+            pending: deletePending,
+            onSelect: handleDelete,
+          },
+        ]}
+      />
     </>
   );
 }
 
-// ── Shared template row group ─────────────────────────────────────────────────
+// ── Row ──────────────────────────────────────────────────────────────────────
 
-function TemplateGroup({
-  label,
-  templates,
-  pending,
-  selectedId,
-  deletingId,
+function TemplateRow({
+  template: t,
+  editing,
+  loading,
+  disabled,
   onSelect,
-  allowDelete,
   onDelete,
 }: {
-  label: string;
-  templates: Template[];
-  pending: boolean;
-  selectedId: string | null;
-  deletingId: string | null;
-  onSelect: (id: string) => void;
-  allowDelete: boolean;
-  onDelete: (e: React.MouseEvent, id: string) => void;
+  template: Template;
+  editing: boolean;
+  loading: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+  onDelete?: () => void;
 }) {
+  const totalSets = t.exercises.reduce((s, e) => s + e.sets, 0);
+
+  // A row is a <div> holding sibling buttons (never a button inside a button)
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-1">
-        {label}
-      </p>
-      {templates.map((t) => (
+    <div className="ios-row">
+      {editing && onDelete && (
         <button
-          key={t.id}
-          disabled={pending}
-          onClick={() => onSelect(t.id)}
-          className={cn(
-            "flex items-center gap-4 rounded-xl border border-border bg-muted/40 p-4 text-left transition-all",
-            "hover:bg-accent hover:border-primary active:scale-[0.98]",
-            "disabled:opacity-50",
-            selectedId === t.id && pending && "border-primary bg-primary/10"
-          )}
+          type="button"
+          onClick={onDelete}
+          aria-label={`Delete ${t.name}`}
+          className="-ml-1 flex h-11 w-7 shrink-0 items-center justify-center"
         >
-          <span className="text-3xl shrink-0">{t.emoji}</span>
-
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground">{t.name}</p>
-            <p className="text-xs text-muted-foreground truncate mt-0.5">
-              {t.exercises.map((e) => e.name).join(" · ")}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {t.exercises.length} exercises ·{" "}
-              {t.exercises.reduce((s, e) => s + e.sets, 0)} sets
-            </p>
-          </div>
-
-          {pending && selectedId === t.id ? (
-            <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
-          ) : allowDelete ? (
-            <button
-              onClick={(e) => onDelete(e, t.id)}
-              disabled={pending}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-              aria-label="Delete template"
-            >
-              {deletingId === t.id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-            </button>
-          ) : (
-            <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-          )}
+          <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-destructive">
+            <span className="h-[2.5px] w-[11px] rounded-full bg-white" />
+          </span>
         </button>
-      ))}
+      )}
+      <button
+        type="button"
+        onClick={onSelect}
+        disabled={disabled || editing}
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-3 text-left",
+          !editing && "active:opacity-60"
+        )}
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-secondary text-[24px]">
+          {t.emoji}
+        </span>
+        <span className="ios-row-content">
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-body text-foreground">{t.name}</span>
+            <span className="block truncate text-footnote text-muted-foreground">
+              {t.exercises.length} exercises · {totalSets} sets ·{" "}
+              {t.exercises.map((e) => e.name).join(", ")}
+            </span>
+          </span>
+          {loading ? (
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+          ) : !editing ? (
+            <ChevronRight className="h-4 w-4 shrink-0 text-tertiary" />
+          ) : null}
+        </span>
+      </button>
     </div>
   );
 }
