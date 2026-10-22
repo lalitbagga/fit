@@ -1,0 +1,45 @@
+{
+  "plan": "Rotation A → B → C (Oct 2026)",
+  "description": "3 full-body machine days rotated in order (not tied to weekdays). Chest/back/legs priority, shoulders added. Double progression: same weight every working set; when all sets hit the top of the range, add the smallest jump.",
+  "templates": [
+    {
+      "name": "Day A — Chest (Oct-2026)",
+      "emoji": "🏋️",
+      "exercises": [
+        { "name": "Machine Chest Press", "sets": 4, "repsTarget": "6-10", "notes": "Main lift. 55 lb all sets; 4×10 → 60. Pause 1s at chest." },
+        { "name": "Leg Press", "sets": 3, "repsTarget": "8-12", "notes": "225; 3×12 → +20 lb. Full depth, lower back stays down." },
+        { "name": "Lat Pulldowns", "sets": 3, "repsTarget": "8-12", "notes": "50; 3×12 → next plate. Elbows down to ribs." },
+        { "name": "Shoulder Press Machine", "sets": 3, "repsTarget": "8-12", "notes": "NEW. Start ~30-40 (12 reps, 2 left in tank).", "gifUrl": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leverage_Shoulder_Press/0.jpg" },
+        { "name": "Seated leg curl", "sets": 3, "repsTarget": "10-12", "notes": "70. Slow 3s release. Superset with Cable & fly." },
+        { "name": "Cable & fly", "sets": 2, "repsTarget": "12-15", "notes": "30. Big stretch, 1s squeeze." },
+        { "name": "Standing calf raise", "sets": 3, "repsTarget": "12-15", "notes": "170. 2s pause in the stretch, no bouncing." }
+      ]
+    },
+    {
+      "name": "Day B — Back (Oct-2026)",
+      "emoji": "🚣",
+      "exercises": [
+        { "name": "Chest supported row machine", "sets": 4, "repsTarget": "8-10", "notes": "Main lift. 35 all sets; 4×10 → 40. Squeeze 1s." },
+        { "name": "Hack Squat", "sets": 3, "repsTarget": "8-12", "notes": "90 (rebuild to 115+). 2-3s down. 3×12 → +10." },
+        { "name": "Incline press machine", "sets": 3, "repsTarget": "8-12", "notes": "40; 3×12 → 45." },
+        { "name": "Romanian Deadlift", "sets": 3, "repsTarget": "8-10", "notes": "55. Hips back, flat back, stop at hamstring stretch." },
+        { "name": "Seated Cable Row", "sets": 3, "repsTarget": "10-12", "notes": "50. Chest up, pull to belly button." },
+        { "name": "Lateral raise machine", "sets": 3, "repsTarget": "12-15", "notes": "Drop to 45 for reps; 3×15 → 50." },
+        { "name": "Biceps curl", "sets": 2, "repsTarget": "10-12", "notes": "70. Superset with lateral raises." }
+      ]
+    },
+    {
+      "name": "Day C — Shoulders (Oct-2026)",
+      "emoji": "🏔️",
+      "exercises": [
+        { "name": "Decline press machine", "sets": 3, "repsTarget": "8-12", "notes": "45; 3×12 → 50." },
+        { "name": "Lat Pulldowns", "sets": 3, "repsTarget": "8-12", "notes": "Same as Day A. Neutral V-handle if free." },
+        { "name": "Leg extension", "sets": 3, "repsTarget": "12-15", "notes": "55. 1s squeeze at top. Rebuild to 75." },
+        { "name": "Seated leg curl", "sets": 3, "repsTarget": "10-12", "notes": "Same as Day A. Superset with Reverse Pec Deck." },
+        { "name": "Reverse Pec Deck", "sets": 3, "repsTarget": "12-15", "notes": "NEW (replaces Face Pulls). Rear delts, start ~30-40.", "gifUrl": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Reverse_Machine_Flyes/0.jpg" },
+        { "name": "Lateral raise machine", "sets": 3, "repsTarget": "12-15", "notes": "Same as Day B." },
+        { "name": "Tricep extension", "sets": 3, "repsTarget": "10-15", "notes": "65. Push to 15 reps before adding weight." }
+      ]
+    }
+  ]
+}

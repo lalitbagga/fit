@@ -3,6 +3,9 @@ name: Deploy to EC2
 on:
   push:
     branches: [main]
+    # Plan-only changes are synced by sync-plans.yml; no image rebuild needed.
+    paths-ignore:
+      - "plans/**"
 
 env:
   AWS_REGION: us-east-1

@@ -1,0 +1,45 @@
+name: Sync Workout Plans
+
+# Pushing a change under plans/ writes those templates straight into the
+# production database. No app deploy is needed — templates are read per request.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "plans/**"
+      - "scripts/sync-plans.ts"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only print what would change"
+        type: boolean
+        default: false
+
+concurrency:
+  group: sync-plans
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Sync plans → database
+        env:
+          # Same secret the weekly backup uses. Direct (non-pooled) connection
+          # is fine for a short-lived script.
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: npx tsx scripts/sync-plans.ts ${{ inputs.dry_run && '--dry-run' || '' }}
