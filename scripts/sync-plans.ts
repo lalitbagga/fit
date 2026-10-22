@@ -3,6 +3,9 @@
  *
  *   npx tsx scripts/sync-plans.ts            # apply
  *   npx tsx scripts/sync-plans.ts --dry-run  # print what would change
+ *   npx tsx scripts/sync-plans.ts --build    # used by `npm run build` on Vercel:
+ *                                            # only runs for production deploys and
+ *                                            # never fails the build
  *
  * Plans are code: each JSON file lists templates by name. The sync is
  * additive and idempotent:
@@ -14,8 +17,8 @@
  *   - Every exercise name is upserted into ExerciseLibrary; a plan-supplied
  *     gifUrl is only written when the library entry has none.
  *
- * Runs in CI via .github/workflows/sync-plans.yml on every push that
- * changes plans/**.
+ * On Vercel, `npm run build` runs this with --build, so pushing to main syncs
+ * the plans into the production database as part of the normal deploy.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -91,6 +94,14 @@ function loadPlans(): { file: string; plan: PlanFile }[] {
 
 async function main() {
   const dryRun = process.argv.includes("--dry-run");
+  if (process.argv.includes("--build")) {
+    // Preview deploys share the prod database, and local/Docker builds have no
+    // DB — only the production Vercel build is allowed to write.
+    if (process.env.VERCEL_ENV !== "production" || !process.env.DATABASE_URL) {
+      console.log("sync-plans: skipped (not a production Vercel build)");
+      return;
+    }
+  }
   const plans = loadPlans();
   const prisma = new PrismaClient();
 
@@ -178,5 +189,6 @@ async function main() {
 
 main().catch((e) => {
   console.error(e instanceof Error ? e.message : e);
-  process.exit(1);
+  // A plan problem must never block an app deploy.
+  process.exit(process.argv.includes("--build") ? 0 : 1);
 });
