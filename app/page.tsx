@@ -165,11 +165,11 @@ export default async function Dashboard() {
                 className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/60 transition-colors active:bg-accent -mx-2"
               >
                 <span className="text-2xl shrink-0">
-                  {w.template?.emoji ?? "💪"}
+                  {w.template?.emoji ?? w.templateEmoji ?? "💪"}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">
-                    {w.template?.name ?? "Custom Workout"}
+                    {w.template?.name ?? w.templateName ?? "Custom Workout"}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {w.completedAt ? formatDate(new Date(w.completedAt)) : "—"}

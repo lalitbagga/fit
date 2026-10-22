@@ -102,12 +102,12 @@ export default async function HistoryPage() {
                       style={{ borderRadius: radius }}
                     >
                       <span className="text-2xl shrink-0">
-                        {w.template?.emoji ?? "💪"}
+                        {w.template?.emoji ?? w.templateEmoji ?? "💪"}
                       </span>
 
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">
-                          {w.template?.name ?? "Workout"}
+                          {w.template?.name ?? w.templateName ?? "Workout"}
                         </p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {formatDate(new Date(w.completedAt!))}

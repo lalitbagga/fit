@@ -94,6 +94,9 @@ model Workout {
   user        User              @relation(fields: [userId], references: [id])
   templateId  String?
   template    WorkoutTemplate?  @relation(fields: [templateId], references: [id])
+  // Copied from the template just before it is deleted, so history keeps its label
+  templateName  String?
+  templateEmoji String?
   notes       String?
   completedAt DateTime?
   createdAt   DateTime          @default(now())

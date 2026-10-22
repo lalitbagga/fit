@@ -76,7 +76,7 @@ export async function GET(request: Request) {
     sessionRows.push([
       sessionId,
       torontoDate(workout.completedAt!),
-      workout.template?.name ?? "Workout",
+      workout.template?.name ?? workout.templateName ?? "Workout",
       workout.notes,
     ]);
 

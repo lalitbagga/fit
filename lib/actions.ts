@@ -297,6 +297,17 @@ export async function createWorkoutTemplate(data: {
 }
 
 export async function deleteWorkoutTemplate(templateId: string) {
+  // Keep the label on past workouts (the relation is cleared on delete)
+  const template = await prisma.workoutTemplate.findUnique({
+    where: { id: templateId },
+    select: { name: true, emoji: true },
+  });
+  if (template) {
+    await prisma.workout.updateMany({
+      where: { templateId },
+      data: { templateName: template.name, templateEmoji: template.emoji },
+    });
+  }
   await prisma.templateExercise.deleteMany({ where: { templateId } });
   await prisma.workoutTemplate.delete({ where: { id: templateId } });
   revalidatePath("/");
@@ -851,7 +862,7 @@ export async function generateAiWorkout(
           return `  ${ex.name}: ${setStr || "no data"}`;
         })
         .join("\n");
-      return `${date} (${w.template?.name ?? "Custom"}):\n${exercises}`;
+      return `${date} (${w.template?.name ?? w.templateName ?? "Custom"}):\n${exercises}`;
     })
     .join("\n\n");
 

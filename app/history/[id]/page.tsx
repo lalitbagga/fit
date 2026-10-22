@@ -37,7 +37,7 @@ export default async function WorkoutDetailPage({ params }: Props) {
         </Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold text-foreground leading-tight">
-            {workout.template?.emoji} {workout.template?.name ?? "Workout"}
+            {workout.template?.emoji ?? workout.templateEmoji} {workout.template?.name ?? workout.templateName ?? "Workout"}
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {workout.completedAt
